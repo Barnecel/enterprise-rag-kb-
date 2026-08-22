@@ -1,0 +1,7 @@
+# 数据库配置
+host: ${DB_HOST:localhost}
+port: ${DB_PORT:3308}
+user: ${DB_USER:root}
+password: "${DB_PASSWORD:}"
+database: ${DB_NAME:db_enterprise_9a}
+charset: utf8mb4

@@ -1,0 +1,38 @@
+# 文档处理配置
+chunk_size: 500
+chunk_overlap: 50
+# 父子分块配置 (Parent-Child Indexing)
+parent_chunk_size: 1500    # 父窗口大小，用于作答上下文
+parent_chunk_overlap: 150
+child_chunk_size: 300      # 子块大小，用于检索
+child_chunk_overlap: 30
+upload_folder: uploads
+allowed_extensions:
+  - txt
+  - pdf
+  - doc
+  - docx
+  - ppt
+  - pptx
+  - wps
+  - rtf
+  - md
+
+# 复杂文档解析配置 (Document Parser)
+parser:
+  ocr:
+    enabled: true
+    dpi: 200                 # 扫描页栅格化分辨率
+    min_chars_empty_page: 20 # 页文本少于该值 → 判定扫描页走整页 OCR
+    max_pages: 50            # 单文档 OCR 页数上限
+  table:
+    max_chars: 300           # 表格 Markdown ≤ 该值整体保留为 1 个原子单元；超过按行拆分
+    max_rows_per_group: 10   # 大表格按行拆分组时的每组行数
+  image:
+    caption_enabled: true    # 无文字图片是否用视觉模型生成中文描述
+    caption_min_ocr_len: 20  # 图片 OCR 文本少于该长度才触发视觉描述
+  convert:
+    enabled: true            # doc/wps/rtf 是否用 LibreOffice 转 docx
+    timeout_seconds: 120
+    profile_dir: data/lo_profile   # 固定 profile，避免并发锁
+    soffice_bin: null        # 空 → 自动探测 soffice

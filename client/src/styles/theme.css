@@ -1,0 +1,245 @@
+/* -*- coding: utf-8 -*-
+ * 全局 Apple 风格主题（浅色/深色自动切换）
+ * 通过 <html data-theme="light|dark"> + <html.dark> 控制：
+ *   - data-theme：本文件布局 token（背景/卡片/文字/边框/渐变）
+ *   - .dark 类：Element Plus 官方深色 css-vars（表格/对话框/输入框等组件）
+ * 主色统一走 Element Plus 的 --el-color-primary，本文件仅做覆盖。
+ */
+
+/* ============ 浅色 Token（默认） ============ */
+:root {
+  /* 布局色板（Apple 中性色） */
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --topbar: rgba(255, 255, 255, .72);
+  --sidebar: rgba(255, 255, 255, .55);
+  --overlay: rgba(255, 255, 255, .85);
+  --input-bg: rgba(255, 255, 255, .92);
+  --text: #1d1d1f;
+  --text2: #6e6e73;
+  --text3: #86868b;
+  --border: rgba(0, 0, 0, .08);
+  --hover: rgba(0, 0, 0, .045);
+  --hover2: rgba(0, 0, 0, .07);
+  --row-hover: rgba(0, 0, 0, .02);
+  --glow1: #bfd9ff;
+  --glow2: #d7c9ff;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .06);
+  --shadow-hover: 0 2px 6px rgba(0, 0, 0, .05), 0 16px 32px rgba(0, 0, 0, .08);
+
+  /* 品牌色：绑定 Element Plus 主色，随主题自动切换 */
+  --primary: var(--el-color-primary);
+  --primary-hover: var(--el-color-primary-light-3);
+  --primary-soft: var(--el-color-primary-light-9);
+  --primary-border: var(--el-color-primary-light-5);
+
+  /* 渐变（每套主题单独给出，避免继承冲突） */
+  --grad-mark: linear-gradient(135deg, #2997ff, #0071e3 55%, #00398f);
+  --grad-btn: linear-gradient(135deg, #2997ff, #0071e3);
+  --grad-ava: linear-gradient(135deg, #a1c9ff, #0071e3);
+  --grad-hero: linear-gradient(120deg, #0a2a66 0%, #0071e3 55%, #5ac8fa 120%);
+  --grad-input: linear-gradient(135deg, #2997ff, #0071e3);
+
+  --radius: 14px;
+  --radius-lg: 20px;
+
+  /* 8pt 间距刻度（HIG：间距取 8 的倍数） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --page-pad: var(--space-6);   /* 页面/卡片标准内边距 */
+  --card-pad: var(--space-5);   /* 卡片内边距 */
+  --content-max: 1280px;        /* 内容区最大宽度（长内容对齐可读） */
+
+  /* 排版刻度（HIG 类型层级） */
+  --text-title: 22px;
+  --text-title-w: 700;
+  --text-sub: 13px;
+  --text-sub-color: var(--text3);
+
+  /* Element Plus 主色覆盖：苹果蓝 #0071e3 */
+  --el-color-primary: #0071e3;
+  --el-color-primary-light-3: #4c9ceb;
+  --el-color-primary-light-5: #7fb8f1;
+  --el-color-primary-light-7: #b2d4f6;
+  --el-color-primary-light-8: #cce2f9;
+  --el-color-primary-light-9: #e5f0fc;
+  --el-color-primary-dark-2: #005ab6;
+  --el-border-radius-base: 10px;
+  --el-font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* ============ 深色 Token ============ */
+html[data-theme='dark'] {
+  --bg: #1d1d1f;
+  --card: #2a2a2d;
+  --topbar: rgba(28, 28, 30, .75);
+  --sidebar: rgba(20, 20, 22, .6);
+  --overlay: rgba(42, 42, 45, .9);
+  --input-bg: rgba(0, 0, 0, .25);
+  --text: #f5f5f7;
+  --text2: #a1a1a6;
+  --text3: #86868b;
+  --border: rgba(255, 255, 255, .12);
+  --hover: rgba(255, 255, 255, .07);
+  --hover2: rgba(255, 255, 255, .12);
+  --row-hover: rgba(255, 255, 255, .04);
+  --glow1: #12407c;
+  --glow2: #25306b;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+  --shadow-hover: 0 2px 6px rgba(0, 0, 0, .4), 0 16px 32px rgba(0, 0, 0, .4);
+
+  --grad-mark: linear-gradient(135deg, #4aa8ff, #2997ff 55%, #0a4d99);
+  --grad-btn: linear-gradient(135deg, #4aa8ff, #2997ff);
+  --grad-ava: linear-gradient(135deg, #4aa8ff, #2997ff);
+  --grad-hero: linear-gradient(120deg, #041a36 0%, #0a4d99 55%, #2997ff 130%);
+  --grad-input: linear-gradient(135deg, #4aa8ff, #2997ff);
+
+  /* Element Plus 主色覆盖：亮蓝 #2997ff */
+  --el-color-primary: #2997ff;
+  --el-color-primary-light-3: #69b6ff;
+  --el-color-primary-light-5: #94cbff;
+  --el-color-primary-light-7: #bedeff;
+  --el-color-primary-light-8: #d4e9ff;
+  --el-color-primary-light-9: #eaf4ff;
+  --el-color-primary-dark-2: #2178cc;
+}
+
+/* ============ 基础 ============ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--el-font-family, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background .35s ease, color .3s ease;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* 细滚动条（macOS 风格） */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .18);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, .3);
+}
+html[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .18);
+}
+html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, .3);
+}
+
+/* ============ 通用卡片 / 页面标题 ============ */
+.app-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: background .35s, border-color .35s, box-shadow .35s, transform .18s;
+}
+
+.app-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.app-sub {
+  color: var(--text2);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* 主色渐变按钮（Apple 风格） */
+.btn-apple {
+  border: none;
+  border-radius: 980px;
+  background: var(--grad-btn);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s, filter .15s, box-shadow .15s;
+}
+.btn-apple:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 4px 16px rgba(0, 113, 227, .3);
+}
+
+/* 关键布局表面切换过渡 */
+.topbar, .sidebar, .app-card, .el-table, .el-dialog, .el-card, .el-input__wrapper,
+.el-textarea__inner, .el-select__wrapper, .el-dropdown-menu, .el-pagination {
+  transition: background-color .3s ease, border-color .3s ease, color .2s ease;
+}
+
+/* ============ 页面标题层级（HIG：清晰视觉层级） ============ */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+}
+.page-title {
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-title);
+  font-weight: var(--text-title-w);
+  letter-spacing: -.01em;
+  color: var(--text);
+}
+.page-sub {
+  margin: 0;
+  font-size: var(--text-sub);
+  color: var(--text-sub-color);
+}
+
+/* ============ 页面切换过渡（HIG 深度原则：轻量淡入） ============ */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity .18s ease, transform .18s ease;
+}
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}

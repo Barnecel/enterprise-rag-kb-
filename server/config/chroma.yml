@@ -1,0 +1,3 @@
+# Chroma向量数据库配置
+persist_directory: chroma_data
+collection_name: enterprise_knowledge

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前端设计方向 Demo 目录</title>
+<style>
+:root{
+  --bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--text2:#6e6e73;--text3:#86868b;
+  --border:rgba(0,0,0,.08);--primary:#0071e3;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;padding:60px 20px}
+.wrap{max-width:980px;margin:0 auto}
+.head{text-align:center;margin-bottom:44px}
+.head h1{font-size:40px;font-weight:700;letter-spacing:-.02em}
+.head p{color:var(--text2);font-size:15px;margin-top:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.demo{display:block;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;
+  box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:transform .18s,box-shadow .18s}
+.demo:hover{transform:translateY(-4px);box-shadow:0 2px 6px rgba(0,0,0,.05),0 18px 40px rgba(0,0,0,.1)}
+.demo .swatch{height:96px;border-radius:14px;margin-bottom:20px;position:relative;overflow:hidden}
+.demo h2{font-size:19px;font-weight:700;margin-bottom:6px}
+.demo p{font-size:13.5px;color:var(--text2);line-height:1.6}
+.demo .tags{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.demo .tags span{font-size:11px;padding:3px 10px;border-radius:980px;background:var(--bg);border:1px solid var(--border);color:var(--text2)}
+.swatch.blue{background:linear-gradient(135deg,#2997ff,#0071e3 55%,#00398f)}
+.swatch.purple{background:linear-gradient(135deg,#7b90ef,#667eea 45%,#5a3bbd)}
+.swatch.dark{background:linear-gradient(135deg,#161617,#2a2a2d 60%,#323235)}
+.swatch .n{position:absolute;right:12px;bottom:10px;font-size:20px;font-weight:700;color:rgba(255,255,255,.9)}
+.foot{text-align:center;color:var(--text3);font-size:12px;margin-top:36px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>前端设计方向 · Demo 目录</h1>
+    <p>参考 Apple 官网设计语言，选择你倾向的方向后我再落地到项目。</p>
+  </div>
+  <div class="grid">
+    <a class="demo" href="demo-apple-blue.html">
+      <div class="swatch blue"><span class="n">Aa</span></div>
+      <h2>苹果蓝 · 浅色</h2>
+      <p>最贴近 Apple 官网：居中极简登录卡、毛玻璃顶栏、大圆角白卡片、苹果蓝 #0071e3。覆盖登录 / 主界面 / 问答 / 文档 / 管理五个页面。</p>
+      <div class="tags"><span>居中登录</span><span>毛玻璃导航</span><span>苹果蓝 #0071e3</span></div>
+    </a>
+    <a class="demo" href="demo-purple.html">
+      <div class="swatch purple"><span class="n">Aa</span></div>
+      <h2>保留紫色 · 分屏精致化</h2>
+      <p>布局全部 Apple 化，但保留你现在的左右分屏登录和紫色品牌色，更精致地运用。适合想保留品牌色、只要提升质感的场景。</p>
+      <div class="tags"><span>左右分屏</span><span>紫色 #667eea</span><span>精致化</span></div>
+    </a>
+    <a class="demo" href="demo-dark.html">
+      <div class="swatch dark"><span class="n">Aa</span></div>
+      <h2>深色模式</h2>
+      <p>同一套布局的深色变体：深灰底、亮蓝 #2997ff 强调。与浅色版对比，直观感受明暗差异。</p>
+      <div class="tags"><span>深色毛玻璃</span><span>亮蓝 #2997ff</span><span>护眼</span></div>
+    </a>
+    <a class="demo" href="demo-auto.html">
+      <div class="swatch" style="background:linear-gradient(90deg,#f5f5f7 0%,#f5f5f7 45%,#1d1d1f 55%,#1d1d1f 100%)"><span class="n" style="color:rgba(0,0,0,.4)">Aa</span></div>
+      <h2>按时间自动切换</h2>
+      <p>浅色/深色随本地时间自动切换（19:00–次日 7:00 深色），演示条可手动切换 自动 / 浅色 / 深色。</p>
+      <div class="tags"><span>自动跟随时间</span><span>一键手动覆盖</span><span>平滑过渡</span></div>
+    </a>
+  </div>
+  <div class="foot">每个 demo 均为纯静态 HTML，浏览器直接打开即可 · 顶部可切换 登录/主界面/问答/文档/管理</div>
+</div>
+</body>
+</html>

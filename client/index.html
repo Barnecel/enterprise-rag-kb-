@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>企业知识库</title>
+    <script>
+      // 首屏防闪烁：同步按偏好/时间设置主题
+      (function () {
+        var mode = 'auto'
+        try { mode = localStorage.getItem('kb_theme') || 'auto' } catch (e) {}
+        var h = new Date().getHours()
+        var dark = mode === 'dark' || (mode === 'auto' && (h >= 19 || h < 7))
+        var el = document.documentElement
+        el.setAttribute('data-theme', dark ? 'dark' : 'light')
+        if (dark) el.classList.add('dark')
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

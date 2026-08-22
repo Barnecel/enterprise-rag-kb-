@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Node / 前端构建产物
+node_modules/
+client/dist/
+
+# 运行数据与产物
+chroma_data/
+server/chroma_data/
+server/data/
+server/logs/
+server/uploads/
+server/server.log
+
+# 环境变量（含真实密钥/密码，绝不入库）
+server/.env
+
+# IDE / 系统
+.DS_Store
+.idea/
+.vscode/
+.claude/
+.opencode/

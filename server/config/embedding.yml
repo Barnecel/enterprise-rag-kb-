@@ -1,0 +1,5 @@
+# 嵌入模型配置 (Qllama的Qwen3-Embedding-8B-4bit-DWQ)
+model_name: Qwen3-Embedding-8B-4bit-DWQ
+api_base: ${EMBEDDING_API_BASE:http://127.0.0.1:8000/v1}
+dimension: 768
+batch_size: 32

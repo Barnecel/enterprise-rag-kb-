@@ -1,0 +1,7 @@
+# LLM大模型配置 (oMLX的Qwen3.5-9B-MLX-4bit)
+model_name: Qwen3.5-9B-MLX-4bit
+api_base: ${LLM_API_BASE:http://127.0.0.1:8000/v1}
+api_key: "${LLM_API_KEY:}"
+temperature: 0.7
+max_tokens: 24000
+timeout: 120

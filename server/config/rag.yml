@@ -1,0 +1,47 @@
+# RAG检索配置
+top_k: 5
+score_threshold: 1.5
+
+# 混合检索 (特性1: BM25稀疏 + Embedding稠密 + RRF融合)
+hybrid:
+  enabled: true
+  dense_top_k: 20        # 稠密召回数量
+  bm25_top_k: 20         # 稀疏召回数量
+  fusion_top_n: 15       # RRF融合后取前N
+  rrf_k: 60              # RRF常数
+  weights: {dense: 1.0, sparse: 1.0}
+
+# 交叉编码器重排 (特性1: Cross-Encoder Rerank)
+rerank:
+  enabled: true
+  model_name: BAAI/bge-reranker-base
+  top_n: 8               # 重排后送入LLM的数量
+  min_norm: 0.5          # 重排置信度兜底:rerank_norm低于此值的块不送LLM(防无关块混入)
+
+# 父子索引 (特性2: Parent-Child Indexing)
+parent_child:
+  enabled: true
+
+# 动态TopK (特性3: 基于分数分布的动态调度)
+dynamic_topk:
+  enabled: true
+  min_topk: 3
+  max_topk: 8
+  base_topk: 5
+  high_threshold: 0.85   # 高相似度分数阈值
+  low_threshold: 0.5
+
+# 查询改写 (特性4: Query Rewrite)
+query_rewrite:
+  enabled: true
+  num_expansions: 2      # 改写生成2个变体(最多3个查询)
+  temperature: 0.3
+
+# 租户隔离 (特性5: 部门级数据安全)
+tenant:
+  enabled: true
+
+# 枚举/清单类查询 (特性6: 标题级匹配，回答"有哪些文档"类问题)
+enumeration:
+  enabled: true
+  max_docs: 15           # 枚举查询最多列出文档数

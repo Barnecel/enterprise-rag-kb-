@@ -1,0 +1,38 @@
+# 多级缓存配置 (Multi-Level Cache)
+# 用于高频问题的快速响应，绕过完整RAG管线的耗时操作
+
+# L1 精确缓存（Exact Match Cache）
+# 存储完整的"问题-答案"键值对，字符串精确匹配
+l1_cache:
+  enabled: true
+  ttl: 86400              # 24小时（秒）
+  max_entries: 10000      # 最大条目数，超出淘汰最旧
+
+# L2 语义缓存（Semantic Cache）
+# 基于向量相似度的问题匹配，使用轻量级嵌入模型
+l2_cache:
+  enabled: true
+  ttl: 86400              # 24小时（秒）
+  max_entries: 5000       # 最大条目数
+  similarity_threshold: 0.92  # 余弦相似度阈值（命中条件）
+  embedding_model: "BAAI/bge-small-zh-v1.5"  # 轻量级中文嵌入模型（~33MB）
+
+# L3 上下文缓存（Context Cache）
+# 缓存"问题→检索结果"映射，命中后仅需一次LLM生成
+l3_cache:
+  enabled: true
+  ttl: 21600              # 6小时（秒）
+  max_entries: 3000       # 最大条目数
+
+# 热点问题检测（Hot Question Detection）
+# 用于识别高频问题，触发缓存写入
+hot_question:
+  enabled: true
+  min_frequency: 5        # 24h内至少查询次数
+  window_minutes: 1440    # 滑动窗口大小（24小时）
+
+# 缓存预热（Cache Warm-up）
+warmup:
+  min_history_count: 3    # 历史记录中至少出现次数才预热
+  max_questions: 50       # 单次预热最多处理的问题数
+  batch_size: 5           # 并发预热的问题数

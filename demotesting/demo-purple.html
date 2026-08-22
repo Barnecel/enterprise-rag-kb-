@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo · 保留紫色 · 企业知识库</title>
+<style>
+/* ============ Apple 布局 + 紫色品牌 ============ */
+:root{
+  --bg:#f5f5f7;
+  --card:#ffffff;
+  --text:#1d1d1f;
+  --text2:#6e6e73;
+  --text3:#86868b;
+  --border:rgba(0,0,0,.08);
+  --primary:#667eea;
+  --primary-hover:#7b90ef;
+  --primary-deep:#5a3bbd;
+  --primary-soft:#efeefc;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  --radius:14px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font);color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+
+.demo-tabs{position:fixed;top:0;left:0;right:0;z-index:999;display:flex;gap:6px;align-items:center;
+  padding:10px 20px;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--border)}
+.demo-tabs .lbl{font-size:12px;font-weight:600;color:var(--text3);margin-right:8px}
+.demo-tabs button{border:none;background:transparent;padding:7px 16px;border-radius:20px;font-size:13px;
+  font-family:var(--font);color:var(--text2);cursor:pointer;transition:all .2s}
+.demo-tabs button:hover{background:rgba(0,0,0,.04);color:var(--text)}
+.demo-tabs button.active{background:var(--primary);color:#fff}
+.demo-tabs .hint{margin-left:auto;font-size:12px;color:var(--text3)}
+
+/* ============ 登录页：左右分屏 ============ */
+.sec{display:none;min-height:100vh}
+.sec.on{display:block}
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 20px 40px;background:var(--bg)}
+.login-box{display:flex;width:min(880px,96vw);min-height:520px;border-radius:24px;overflow:hidden;
+  border:1px solid var(--border);box-shadow:0 20px 60px rgba(90,59,189,.16)}
+.login-left{flex:1;position:relative;overflow:hidden;color:#fff;padding:52px 44px;display:flex;flex-direction:column;justify-content:center;
+  background:linear-gradient(135deg,#7b90ef 0%,#667eea 45%,#5a3bbd 100%)}
+.login-left::after{content:"";position:absolute;right:-60px;top:-60px;width:280px;height:280px;border-radius:50%;
+  background:rgba(255,255,255,.16);filter:blur(46px)}
+.login-left .mark{width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;margin-bottom:26px}
+.login-left h1{font-size:32px;font-weight:700;letter-spacing:-.01em}
+.login-left .sub{opacity:.82;font-size:14px;margin-top:6px}
+.login-left .feats{margin-top:34px;display:flex;flex-direction:column;gap:16px}
+.feat{display:flex;align-items:center;gap:13px;font-size:15px;opacity:.92}
+.feat .ic{width:34px;height:34px;flex:none;border-radius:9px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center}
+.login-right{flex:1;background:#fff;display:flex;align-items:center;justify-content:center;padding:44px}
+.login-right .wrap{width:100%;max-width:300px}
+.login-right h2{font-size:22px;font-weight:700;text-align:center;margin-bottom:24px}
+.login-right .field{width:100%;padding:13px 16px;border:1px solid var(--border);border-radius:12px;font-size:15px;
+  font-family:var(--font);background:#fff;margin-bottom:14px;outline:none;transition:all .2s}
+.login-right .field:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(102,126,234,.16)}
+.login-right .btn{width:100%;padding:13px;border:none;border-radius:12px;font-size:16px;font-weight:600;font-family:var(--font);
+  color:#fff;background:linear-gradient(135deg,#7b90ef,#667eea);cursor:pointer;transition:all .2s}
+.login-right .btn:hover{filter:brightness(1.06)}
+.login-right .footer{text-align:center;font-size:13px;color:var(--text3);margin-top:16px}
+.login-right .tip{margin-top:22px;font-size:12px;color:var(--text3);background:var(--bg);border-radius:10px;padding:9px;text-align:center}
+
+/* ============ 应用外壳 ============ */
+.shell{height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+.topbar{height:54px;flex:none;display:flex;align-items:center;gap:14px;padding:0 22px;
+  background:rgba(255,255,255,.72);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.brand .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#7b90ef,#667eea 55%,#5a3bbd);
+  display:flex;align-items:center;justify-content:center;color:#fff}
+.topbar .spacer{flex:1}
+.search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);
+  border-radius:10px;padding:7px 12px;width:220px;font-size:13px;color:var(--text3)}
+.topbar .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#a7b4f5,#667eea);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600}
+.body{flex:1;display:flex;overflow:hidden}
+.sidebar{width:220px;flex:none;background:rgba(255,255,255,.55);backdrop-filter:blur(14px);
+  border-right:1px solid var(--border);padding:14px 12px;overflow-y:auto}
+.sidebar .grp{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;padding:12px 10px 6px}
+.menu-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;font-size:14px;
+  color:var(--text2);cursor:pointer;transition:all .15s}
+.menu-item svg{flex:none;opacity:.7}
+.menu-item:hover{background:rgba(0,0,0,.045);color:var(--text)}
+.menu-item.active{background:var(--primary-soft);color:var(--primary);font-weight:500}
+.main{flex:1;overflow-y:auto;padding:28px 32px}
+.shell-page{display:none}
+.shell-page.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.page-title{font-size:28px;font-weight:700;letter-spacing:-.015em;margin-bottom:4px}
+.page-sub{color:var(--text2);font-size:14px;margin-bottom:24px}
+
+.hero{position:relative;border-radius:20px;overflow:hidden;color:#fff;padding:56px 48px;margin-bottom:26px;
+  background:linear-gradient(120deg,#3b2f83 0%,#667eea 55%,#b39dff 120%)}
+.hero::after{content:"";position:absolute;right:-80px;top:-80px;width:340px;height:340px;border-radius:50%;
+  background:rgba(255,255,255,.15);filter:blur(60px)}
+.hero h2{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.hero p{font-size:16px;opacity:.85;margin-top:10px;max-width:520px;line-height:1.6}
+.hero .cta{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:10px 22px;border-radius:980px;
+  background:#fff;color:#667eea;font-size:15px;font-weight:600;cursor:pointer;transition:transform .2s}
+.hero .cta:hover{transform:scale(1.03)}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.quick .card{padding:22px;transition:transform .18s,box-shadow .18s}
+.quick .card:hover{transform:translateY(-3px);box-shadow:0 2px 6px rgba(0,0,0,.05),0 16px 32px rgba(0,0,0,.08)}
+.quick .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  background:var(--primary-soft);color:var(--primary);margin-bottom:14px}
+.quick h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.quick p{font-size:13px;color:var(--text2);line-height:1.5}
+
+.chat-wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.bubble{display:flex;gap:12px;align-items:flex-start}
+.bubble .ava{width:34px;height:34px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.bubble.user{flex-direction:row-reverse}
+.bubble .msg{max-width:82%;padding:12px 16px;border-radius:18px;font-size:14.5px;line-height:1.65}
+.bubble.ai .msg{background:#fff;border:1px solid var(--border);border-top-left-radius:6px;box-shadow:var(--shadow)}
+.bubble.user .msg{background:linear-gradient(135deg,#7b90ef,#667eea);color:#fff;border-top-right-radius:6px}
+.chat-input{position:sticky;bottom:0;margin-top:8px;display:flex;gap:10px;align-items:flex-end;
+  background:rgba(255,255,255,.85);backdrop-filter:blur(20px);border:1px solid var(--border);
+  border-radius:20px;padding:10px 12px;box-shadow:var(--shadow)}
+.chat-input textarea{flex:1;border:none;outline:none;resize:none;font-size:14.5px;font-family:var(--font);
+  background:transparent;padding:6px;max-height:120px;color:var(--text)}
+.chat-input .send{width:36px;height:36px;flex:none;border-radius:50%;border:none;background:linear-gradient(135deg,#7b90ef,#667eea);
+  color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+.chat-input .send:hover{transform:scale(1.05)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px}
+.chip{padding:7px 16px;border-radius:980px;border:1px solid var(--border);background:#fff;font-size:13px;
+  color:var(--text2);cursor:pointer;transition:all .15s}
+.chip:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.doc-card{padding:20px;cursor:pointer;transition:transform .18s,box-shadow .18s}
+.doc-card:hover{transform:translateY(-3px);box-shadow:0 2px 6px rgba(0,0,0,.05),0 16px 32px rgba(0,0,0,.08)}
+.doc-card .ft{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;font-size:12px;font-weight:700}
+.ft.pdf{background:#fff0e9;color:#e05b2e}.ft.docx{background:#e8f3ff;color:#2b6cb0}
+.ft.pptx{background:#ffe8ef;color:#d6336c}.ft.md{background:#efeefc;color:#667eea}
+.doc-card h3{font-size:15.5px;font-weight:600;margin-bottom:6px;line-height:1.35}
+.doc-card p{font-size:13px;color:var(--text3);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.doc-card .meta{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12px;color:var(--text3)}
+.tag{font-size:11px;padding:2px 9px;border-radius:980px;background:var(--primary-soft);color:var(--primary);font-weight:600}
+.badge{font-size:11px;padding:2px 9px;border-radius:980px;background:var(--bg);color:var(--text2);border:1px solid var(--border)}
+.filterbar{display:flex;gap:10px;align-items:center;margin-bottom:20px}
+.filterbar .search{width:280px;background:#fff}
+
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat{padding:22px;transition:transform .18s}
+.stat:hover{transform:translateY(-3px)}
+.stat .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stat .num{font-size:30px;font-weight:700;letter-spacing:-.02em}
+.stat .lab{font-size:13px;color:var(--text2)}
+.stat .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center}
+.ic.b1{background:#efeefc;color:#667eea}.ic.b2{background:#ffece5;color:#e05b2e}
+.ic.b3{background:#e7f7ee;color:#1e9e57}.ic.b4{background:#fff3de;color:#d68a00}
+.table-card{overflow:hidden}
+.tbl-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.tbl-head h3{font-size:16px;font-weight:600}
+.tbl-head .btn{font-size:12px;padding:7px 14px;border-radius:980px;background:var(--primary);color:#fff;border:none;font-family:var(--font);cursor:pointer}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;font-weight:600;color:var(--text3);text-align:left;padding:12px 22px;border-bottom:1px solid var(--border)}
+td{padding:15px 22px;font-size:13.5px;border-bottom:1px solid var(--border)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:rgba(0,0,0,.02)}
+</style>
+</head>
+<body>
+
+<nav class="demo-tabs">
+  <span class="lbl">保留紫色 · 浅色</span>
+  <button onclick="show('login')">登录</button>
+  <button onclick="show('home')">主界面</button>
+  <button onclick="show('chat')">问答</button>
+  <button onclick="show('docs')">文档</button>
+  <button onclick="show('admin')">管理</button>
+  <span class="hint">静态预览 · 仅供参考</span>
+</nav>
+
+<!-- 登录页：左右分屏 -->
+<section id="sec-login" class="sec">
+  <div class="login-page">
+    <div class="login-box">
+      <div class="login-left">
+        <div class="mark">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-1.2z"/></svg>
+        </div>
+        <h1>企业知识库</h1>
+        <div class="sub">Intelligent Knowledge Base System</div>
+        <div class="feats">
+          <div class="feat"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 12h6M9 16h6"/></svg></span>海量文档管理</div>
+          <div class="feat"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>智能检索问答</div>
+          <div class="feat"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/></svg></span>RAG 增强生成</div>
+          <div class="feat"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v5"/></svg></span>数据统计分析</div>
+        </div>
+      </div>
+      <div class="login-right">
+        <div class="wrap">
+          <h2>用户登录</h2>
+          <input class="field" placeholder="用户名">
+          <input class="field" type="password" placeholder="密码">
+          <button class="btn">登录</button>
+          <div class="footer">还没有账号？<a href="#">立即注册</a></div>
+          <div class="tip">演示账号：admin / 123456</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 应用外壳 -->
+<section id="sec-shell" class="sec">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-1.2z"/></svg></span>企业知识库</div>
+      <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>搜索文档…</div>
+      <span class="spacer"></span>
+      <div class="avatar">管</div>
+    </header>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="grp">工作区</div>
+        <div class="menu-item active" data-nav="home"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>主界面</div>
+        <div class="menu-item" data-nav="chat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/><path d="M9 10.5h6M9 14h4"/></svg>智能问答</div>
+        <div class="menu-item" data-nav="docs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 12h6M9 16h6"/></svg>知识库</div>
+        <div class="grp">管理</div>
+        <div class="menu-item" data-nav="admin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v5"/></svg>控制台</div>
+        <div class="menu-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6"/><path d="M16 5.4a3.2 3.2 0 010 5.4M18.5 15.8c1 .8 1.7 2 2 4.2"/></svg>用户管理</div>
+        <div class="menu-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>登录日志</div>
+      </aside>
+      <main class="main">
+
+        <div class="shell-page on" data-page="home">
+          <div class="hero">
+            <h2>探索企业知识库</h2>
+            <p>将公司的文档、制度与经验沉淀为可检索、可问答的智能知识资产，让每一位员工都能找到自己需要的答案。</p>
+            <div class="cta">开始问答<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          </div>
+          <div class="quick">
+            <div class="card"><div class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/></svg></div><h3>智能问答</h3><p>基于 RAG 的混合检索，从企业知识中生成有依据的答案。</p></div>
+            <div class="card"><div class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 12h6M9 16h6"/></svg></div><h3>知识库文档</h3><p>支持 PDF、Word、PPT 等格式，自动解析表格与图片。</p></div>
+            <div class="card"><div class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v5"/></svg></div><h3>数据洞察</h3><p>直观的统计图表，了解知识库的使用情况。</p></div>
+          </div>
+        </div>
+
+        <div class="shell-page" data-page="chat">
+          <div class="chat-wrap">
+            <div class="bubble ai">
+              <div class="ava" style="background:linear-gradient(135deg,#7b90ef,#667eea)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-1.2z"/></svg></div>
+              <div class="msg">你好！我是企业知识库助手。你可以问我关于公司制度、文档内容等方面的问题。</div>
+            </div>
+            <div class="bubble user">
+              <div class="ava" style="background:linear-gradient(135deg,#a7b4f5,#667eea)">我</div>
+              <div class="msg">公司的报销流程是怎样的？</div>
+            </div>
+            <div class="bubble ai">
+              <div class="ava" style="background:linear-gradient(135deg,#7b90ef,#667eea)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-1.2z"/></svg></div>
+              <div class="msg">根据《财务管理制度》（第 3 节），报销流程为：<br>① 填写《费用报销单》并附发票；<br>② 部门负责人审批；<br>③ 财务部审核单据合规性；<br>④ 出纳付款，全程一般在 3 个工作日内完成。<br><span style="font-size:12px;color:var(--text3)">来源：财务管理制度.docx · 第 3 节</span></div>
+            </div>
+            <div class="chips"><span class="chip">报销需要什么材料？</span><span class="chip">年假怎么算？</span><span class="chip">VPN 怎么申请？</span></div>
+            <div class="chat-input">
+              <textarea placeholder="输入你的问题…" rows="1"></textarea>
+              <button class="send"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="shell-page" data-page="docs">
+          <div class="page-title">知识库</div>
+          <div class="page-sub">共 257 篇文档 · 跨部门统一检索</div>
+          <div class="filterbar">
+            <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>搜索文档…</div>
+            <span class="badge">全部</span><span class="badge">技术部</span><span class="badge">财务部</span>
+          </div>
+          <div class="doc-grid">
+            <div class="doc-card card"><div class="ft pdf">PDF</div><h3>Aventro Bolt Sedan 产品手册</h3><p>AVENTRO MOTORS PVT. LTD. Bolt Sedan 车辆规格、性能参数与驾驶辅助系统的详细介绍。</p><div class="meta"><span class="tag">公开</span> 2.4 MB · 2026-08-13</div></div>
+            <div class="doc-card card"><div class="ft docx">DOC</div><h3>财务管理制度</h3><p>费用报销、发票管理、预算控制与审批流程的相关规定。</p><div class="meta"><span class="tag">公开</span> 680 KB · 2026-08-10</div></div>
+            <div class="doc-card card"><div class="ft pptx">PPT</div><h3>2026 年度技术规划汇报</h3><p>技术部 2026 年度重点方向、资源投入与里程碑规划。</p><div class="meta"><span class="tag">内部</span> 4.1 MB · 2026-08-05</div></div>
+            <div class="doc-card card"><div class="ft md">MD</div><h3>员工手册</h3><p>入职指南、考勤制度、假期管理与福利说明。</p><div class="meta"><span class="tag">公开</span> 320 KB · 2026-07-28</div></div>
+          </div>
+        </div>
+
+        <div class="shell-page" data-page="admin">
+          <div class="page-title">控制台</div>
+          <div class="page-sub">知识库运营概览</div>
+          <div class="stat-grid">
+            <div class="stat card"><div class="top"><span class="num">257</span><span class="ic b1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 12h6M9 16h6"/></svg></span></div><div class="lab">文档总数</div></div>
+            <div class="stat card"><div class="top"><span class="num">1,024</span><span class="ic b2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6"/></svg></span></div><div class="lab">用户总数</div></div>
+            <div class="stat card"><div class="top"><span class="num">86%</span><span class="ic b3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M6 20v-6M18 20V4"/></svg></span></div><div class="lab">本周活跃</div></div>
+            <div class="stat card"><div class="top"><span class="num">3,842</span><span class="ic b4"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/></svg></span></div><div class="lab">问答次数</div></div>
+          </div>
+          <div class="table-card card">
+            <div class="tbl-head"><h3>最近文档</h3><button class="btn">管理文档</button></div>
+            <table>
+              <thead><tr><th>标题</th><th>类型</th><th>部门</th><th>状态</th><th>更新时间</th></tr></thead>
+              <tbody>
+                <tr><td>Pre-Owned Certified Cars</td><td>PPTX</td><td>市场部</td><td><span class="tag">已处理</span></td><td>2026-08-13 18:02</td></tr>
+                <tr><td>财务管理制度</td><td>DOCX</td><td>财务部</td><td><span class="tag">已处理</span></td><td>2026-08-10 14:30</td></tr>
+                <tr><td>员工手册</td><td>MD</td><td>人力资源部</td><td><span class="tag">已处理</span></td><td>2026-07-28 09:12</td></tr>
+                <tr><td>2026 年度技术规划</td><td>PPTX</td><td>技术部</td><td><span class="badge">处理中</span></td><td>2026-08-13 19:05</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</section>
+
+<script>
+var tabs = document.querySelectorAll('.demo-tabs button');
+function show(which){
+  tabs.forEach(function(b){b.classList.toggle('active', b.textContent === (which==='login'?'登录':which==='home'?'主界面':which==='chat'?'问答':which==='docs'?'文档':'管理'))});
+  if(which==='login'){
+    document.getElementById('sec-login').classList.add('on');
+    document.getElementById('sec-shell').classList.remove('on');
+  }else{
+    document.getElementById('sec-login').classList.remove('on');
+    document.getElementById('sec-shell').classList.add('on');
+    document.querySelectorAll('.shell-page').forEach(function(p){p.classList.toggle('on', p.dataset.page===which)});
+    document.querySelectorAll('.menu-item[data-nav]').forEach(function(m){m.classList.toggle('active', m.dataset.nav===which)});
+  }
+}
+document.querySelectorAll('.menu-item[data-nav]').forEach(function(m){
+  m.addEventListener('click', function(){ show(m.dataset.nav); });
+});
+show('login');
+</script>
+</body>
+</html>

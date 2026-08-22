@@ -1,0 +1,6 @@
+# Flask配置
+secret_key: "${FLASK_SECRET_KEY:}"
+jwt_secret_key: "${JWT_SECRET_KEY:}"
+jwt_expire_hours: 24
+debug: ${FLASK_DEBUG:false}
+json_as_ascii: false

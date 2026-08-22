@@ -1,0 +1,93 @@
+# -*- coding: utf-8 -*-
+"""
+查询改写模块 (Query Rewrite)
+使用 LLM(oMLX Qwen3.5-9B) 将用户问题改写为多个利于检索的查询变体
+失败时回退为 [原问题]
+"""
+import json
+import re
+from typing import List, Optional, Dict
+
+import requests
+
+from utils.config_handler import config
+from utils.logger_handler import logger
+from utils.prompt_loader import load_query_rewrite_prompt, build_dialogue_text
+
+LLM_CONFIG = config.get_section('llm')
+RAG_CONFIG = config.get_section('rag')
+QW_CONFIG = RAG_CONFIG.get('query_rewrite', {})
+
+
+class QueryRewriter:
+    """查询改写器"""
+
+    def rewrite(self, question: str, history: Optional[List[Dict]] = None) -> List[str]:
+        """
+        将问题改写为多个查询变体（结合对话历史做指代消解）
+
+        Args:
+            question: 用户原始问题
+            history: 会话历史 [{'question', 'answer'}, ...]（按时间正序，可为空）
+
+        Returns:
+            查询变体列表(第一个始终是原问题)
+        """
+        if not QW_CONFIG.get('enabled', True):
+            return [question]
+
+        num = int(QW_CONFIG.get('num_expansions', 2))
+        try:
+            prompt = load_query_rewrite_prompt().format(
+                question=question, num=num,
+                history=build_dialogue_text(history)
+            )
+            result = self._call_llm(prompt)
+            queries = self._parse(result)
+            queries = [q for q in queries if q.strip()]
+            # 去重并确保原问题在首位
+            queries = [question] + [q for q in queries if q != question]
+            queries = queries[:num + 1]
+            logger.info(f"Query rewrite: '{question}' -> {queries}")
+            return queries
+        except Exception as e:
+            logger.error(f"Query rewrite failed: {e}. Use original query.")
+            return [question]
+
+    def _call_llm(self, prompt: str) -> str:
+        """调用oMLX聊天接口"""
+        response = requests.post(
+            f"{LLM_CONFIG['api_base']}/chat/completions",
+            headers={
+                'Authorization': f"Bearer {LLM_CONFIG.get('api_key', 'dummy')}",
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': LLM_CONFIG['model_name'],
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': QW_CONFIG.get('temperature', 0.3),
+                'max_tokens': 512
+            },
+            timeout=LLM_CONFIG['timeout']
+        )
+        if response.status_code == 200:
+            return response.json()['choices'][0]['message']['content']
+        raise RuntimeError(f"LLM rewrite error: {response.status_code} - {response.text}")
+
+    def _parse(self, text: str) -> List[str]:
+        """解析LLM输出：优先JSON数组，退化为按行分割"""
+        text = text.strip()
+        m = re.search(r'\[.*\]', text, re.S)
+        if m:
+            try:
+                data = json.loads(m.group(0))
+                if isinstance(data, list):
+                    return [str(x) for x in data if str(x).strip()]
+            except Exception:
+                pass
+        lines = []
+        for ln in text.split('\n'):
+            ln = re.sub(r'^[\d\.\-\*\s\u2460-\u2473]+', '', ln).strip()
+            if ln and ln not in ('(', ')', '输出：', '输出', '结果：'):
+                lines.append(ln)
+        return lines
