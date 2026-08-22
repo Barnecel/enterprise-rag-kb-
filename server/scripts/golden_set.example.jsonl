@@ -1,0 +1,3 @@
+{"question": "公司年假有几天？", "relevant_doc_ids": [1], "note": "示例：员工手册应命中"}
+{"question": "报销流程怎么走", "relevant_doc_ids": [2, 3], "note": "示例：多文档相关"}
+{"question": "", "relevant_doc_ids": [], "note": "复制本行填写你的真实标注；question 必填，relevant_doc_ids 填应被命中的 tb_document.id 列表"}

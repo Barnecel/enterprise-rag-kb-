@@ -523,3 +523,77 @@ def get_conversation_messages(current_user, conversation_id):
         del r['doc_ids']
 
     return jsonify({'code': 200, 'message': '获取成功', 'data': rows})
+
+
+# ==================== 用户反馈（badcase收集） ====================
+
+@qa_bp.route('/feedback', methods=['POST'])
+@token_required
+def submit_feedback(current_user):
+    """
+    提交/更新对某条回答的评价
+    Body: {history_id: int, rating: 1|-1, reason?: str}
+    同一用户对同一回答仅保留一条反馈（重复提交即覆盖修改）
+    """
+    data = request.get_json() or {}
+    history_id = data.get('history_id')
+    rating = data.get('rating')
+    reason = (data.get('reason') or '').strip()[:255] or None
+
+    if rating not in (1, -1):
+        return jsonify({'code': 400, 'message': 'rating 仅允许 1(赞) 或 -1(踩)'}), 400
+    try:
+        history_id = int(history_id)
+    except (TypeError, ValueError):
+        return jsonify({'code': 400, 'message': 'history_id 无效'}), 400
+
+    rows = execute_query("SELECT id, user_id FROM tb_qa_history WHERE id = %s", (history_id,))
+    if not rows:
+        return jsonify({'code': 404, 'message': '问答记录不存在'}), 404
+    if current_user['role'] != 'admin' and rows[0]['user_id'] != current_user['user_id']:
+        return jsonify({'code': 403, 'message': '只能评价自己的问答记录'}), 403
+
+    execute_insert(
+        "INSERT INTO tb_qa_feedback (history_id, user_id, rating, reason) VALUES (%s, %s, %s, %s) "
+        "ON DUPLICATE KEY UPDATE rating = VALUES(rating), reason = VALUES(reason)",
+        (history_id, current_user['user_id'], rating, reason)
+    )
+    return jsonify({'code': 200, 'message': '感谢反馈'})
+
+
+@qa_bp.route('/feedback/stats', methods=['GET'])
+@token_required
+def feedback_stats(current_user):
+    """反馈统计与最近差评列表（仅管理员，用于badcase复盘）"""
+    if current_user['role'] != 'admin':
+        return jsonify({'code': 403, 'message': '权限不足，仅管理员可访问'}), 403
+
+    total_rows = execute_query(
+        "SELECT SUM(rating = 1) AS likes, SUM(rating = -1) AS dislikes, COUNT(*) AS total "
+        "FROM tb_qa_feedback"
+    )
+    summary = total_rows[0] if total_rows else {'likes': 0, 'dislikes': 0, 'total': 0}
+    summary = {k: int(v or 0) for k, v in summary.items()}
+
+    recent = execute_query(
+        "SELECT f.id, f.history_id, f.rating, f.reason, f.created_at, "
+        "       h.question, h.answer, u.username "
+        "FROM tb_qa_feedback f "
+        "JOIN tb_qa_history h ON f.history_id = h.id "
+        "LEFT JOIN tb_user u ON f.user_id = u.id "
+        "WHERE f.rating = -1 "
+        "ORDER BY f.created_at DESC LIMIT 20"
+    )
+    for r in recent:
+        r['created_at'] = r['created_at'].strftime('%Y-%m-%d %H:%M:%S') if r.get('created_at') else None
+        r['answer'] = (r.get('answer') or '')[:300]
+
+    return jsonify({
+        'code': 200,
+        'message': '获取成功',
+        'data': {
+            'summary': summary,
+            'dislike_satisfaction': round(summary['likes'] / max(summary['total'], 1), 4),
+            'recent_dislikes': recent
+        }
+    })
