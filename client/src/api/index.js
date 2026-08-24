@@ -239,7 +239,9 @@ export const qaAPI = {
   // 提交/更新反馈
   submitFeedback: (data) => api.post('/qa/feedback', data),
   // 获取反馈统计（管理员）
-  getFeedbackStats: () => api.get('/qa/feedback/stats')
+  getFeedbackStats: () => api.get('/qa/feedback/stats'),
+  // 差评批量转为 golden_set 候选标注（管理员）
+  feedbackToGolden: (historyIds) => api.post('/qa/feedback/to_golden', { history_ids: historyIds })
 }
 
 // 管理员API

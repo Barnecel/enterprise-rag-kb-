@@ -8,11 +8,18 @@
 from flask import Blueprint, request, jsonify, Response
 from functools import wraps
 import json
+import os
 from application.routes.auth import verify_token
 from application.utils.db_utils import execute_query, execute_insert, execute_update
 from application.services.rag_service import get_rag_service
 
 qa_bp = Blueprint('qa', __name__)
+
+# golden_set 标注文件位置（与评测脚本共用同一份）
+GOLDEN_SET_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    'scripts', 'golden_set.jsonl'
+)
 
 
 def _fetch_acl_doc_ids(user_id):
@@ -598,4 +605,74 @@ def feedback_stats(current_user):
             'dislike_satisfaction': round(summary['likes'] / max(summary['total'], 1), 4),
             'recent_dislikes': recent
         }
+    })
+
+
+@qa_bp.route('/feedback/to_golden', methods=['POST'])
+@token_required
+def feedback_to_golden(current_user):
+    """
+    将选中的差评转化为 golden_set 候选标注行，追加到 scripts/golden_set.jsonl。
+    - question 取用户原问题；key_id 取该回答当时引用的文档（检索范围已自动圈定）
+    - answer 留空 = 标记"待人工补全"，评测脚本会正常加载（评测只用 question+相关文档）
+    - 按问题文本去重：重复转化自动跳过
+    Body: {history_ids: [int]}
+    """
+    if current_user['role'] != 'admin':
+        return jsonify({'code': 403, 'message': '权限不足，仅管理员可操作'}), 403
+
+    data = request.get_json() or {}
+    history_ids = [int(i) for i in (data.get('history_ids') or []) if str(i).isdigit()]
+    if not history_ids:
+        return jsonify({'code': 400, 'message': '请先勾选要转化的差评记录'}), 400
+
+    fmt = ','.join(['%s'] * len(history_ids))
+    rows = execute_query(
+        f"SELECT id, question, documents FROM tb_qa_history WHERE id IN ({fmt})",
+        tuple(history_ids)
+    )
+
+    # 已有问题集合（跨文件去重）
+    existing = set()
+    if os.path.isfile(GOLDEN_SET_PATH):
+        with open(GOLDEN_SET_PATH, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    existing.add((json.loads(line).get('question') or '').strip())
+                except Exception:
+                    continue
+
+    added_lines, skipped_no_doc, skipped_dup = [], 0, 0
+    for r in rows:
+        q = (r.get('question') or '').strip()
+        if not q or q in existing:
+            skipped_dup += 1
+            continue
+        try:
+            doc_ids = json.loads(r['documents']) if r.get('documents') else []
+        except Exception:
+            doc_ids = []
+        doc_ids = [int(i) for i in doc_ids if str(i).isdigit()]
+        if not doc_ids:
+            # 无引用文档的条目对检索评测无意义，跳过并在结果中说明
+            skipped_no_doc += 1
+            continue
+        entry = {'question': q, 'answer': '', 'key_id': doc_ids, 'tags': ['from_feedback']}
+        added_lines.append(json.dumps(entry, ensure_ascii=False))
+        existing.add(q)
+
+    if added_lines:
+        with open(GOLDEN_SET_PATH, 'a', encoding='utf-8') as f:
+            f.write('\n'.join(added_lines) + '\n')
+
+    return jsonify({
+        'code': 200,
+        'message': f'已追加 {len(added_lines)} 条候选标注'
+                   + (f'，跳过重复 {skipped_dup} 条' if skipped_dup else '')
+                   + (f'，跳过无引用文档 {skipped_no_doc} 条' if skipped_no_doc else ''),
+        'data': {'added': len(added_lines), 'skipped_duplicate': skipped_dup,
+                 'skipped_no_doc': skipped_no_doc, 'lines': added_lines}
     })

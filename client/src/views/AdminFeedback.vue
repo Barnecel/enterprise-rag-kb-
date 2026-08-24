@@ -62,16 +62,37 @@
       <template #header>
         <div class="card-header">
           <h2>最近差评列表</h2>
-          <el-button type="primary" size="small" @click="loadStats">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-            </svg>
-            刷新
-          </el-button>
+          <div class="header-actions">
+            <el-button
+              type="success"
+              size="small"
+              :disabled="!selectedRows.length"
+              @click="convertToGolden"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-1.2z"/>
+              </svg>
+              转为候选标注{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}
+            </el-button>
+            <el-button type="primary" size="small" plain @click="loadStats">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              刷新
+            </el-button>
+          </div>
         </div>
       </template>
 
-      <el-table :data="recentDislikes" stripe border style="width: 100%" v-loading="loading">
+      <el-table
+        :data="recentDislikes"
+        stripe
+        border
+        style="width: 100%"
+        v-loading="loading"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="45" />
         <el-table-column prop="id" label="反馈ID" width="80" />
         <el-table-column prop="history_id" label="历史ID" width="100" />
         <el-table-column prop="username" label="用户" width="120" />
@@ -123,6 +144,25 @@ const loadStats = async () => {
     ElMessage.error('加载失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 勾选差评 → 一键转为 golden_set 候选标注（answer 留空待人工补全）
+const selectedRows = ref([])
+const handleSelectionChange = (rows) => { selectedRows.value = rows }
+const convertToGolden = async () => {
+  const ids = selectedRows.value.map(r => r.history_id).filter(Boolean)
+  if (!ids.length) {
+    ElMessage.warning('请先勾选要转化的差评记录')
+    return
+  }
+  try {
+    const res = await qaAPI.feedbackToGolden(ids)
+    ElMessage.success(res.message || '已转化')
+    selectedRows.value = []
+    await loadStats()
+  } catch (error) {
+    console.error('转化失败:', error)
   }
 }
 
@@ -209,6 +249,10 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 .card-header h2 {
   margin: 0;
