@@ -19,6 +19,7 @@ const AdminUsers = () => import('../views/AdminUsers.vue')
 const AdminDocuments = () => import('../views/AdminDocuments.vue')
 const AdminCategories = () => import('../views/AdminCategories.vue')
 const AdminLogs = () => import('../views/AdminLogs.vue')
+const AdminFeedback = () => import('../views/AdminFeedback.vue')
 
 // 路由配置
 const routes = [
@@ -98,6 +99,12 @@ const routes = [
         name: 'AdminLogs',
         component: AdminLogs,
         meta: { title: '登录日志', requiresAdmin: true }
+      },
+      {
+        path: 'admin/feedback',
+        name: 'AdminFeedback',
+        component: AdminFeedback,
+        meta: { title: '反馈统计', requiresAdmin: true }
       }
     ]
   },

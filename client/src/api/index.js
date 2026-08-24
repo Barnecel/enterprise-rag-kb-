@@ -234,7 +234,12 @@ export const qaAPI = {
   // 删除会话
   deleteConversation: (id) => api.delete(`/qa/conversations/${id}`),
   // 获取会话内全部消息
-  getConversationMessages: (id) => api.get(`/qa/conversations/${id}/messages`)
+  getConversationMessages: (id) => api.get(`/qa/conversations/${id}/messages`),
+  // ===== 用户反馈（点赞/点踩）=====
+  // 提交/更新反馈
+  submitFeedback: (data) => api.post('/qa/feedback', data),
+  // 获取反馈统计（管理员）
+  getFeedbackStats: () => api.get('/qa/feedback/stats')
 }
 
 // 管理员API

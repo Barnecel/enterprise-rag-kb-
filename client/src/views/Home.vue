@@ -3,27 +3,47 @@
     <!-- 顶部导航栏（Apple 风：固定 + 毛玻璃 + 居中文字导航） -->
     <header class="topbar">
       <div class="nav-inner">
-        <!-- 品牌 + 导航链接（整体居中，Apple 全局导航式） -->
-        <div class="nav-group">
+        <!-- 左区：品牌（HIG：工具栏单层三段式，杜绝绝对定位导致的重叠） -->
+        <div class="nav-side nav-side--left">
           <div class="brand" @click="go('/chat')" title="回到智能问答">
             <span class="mark">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-1.2z"/></svg>
             </span>
             <span class="brand-name">企业知识库</span>
           </div>
-          <nav class="nav-links">
-            <button
-              v-for="item in navItems"
-              :key="item.path"
-              class="nav-link"
-              :class="{ active: isActive(item) }"
-              @click="go(item.path)"
-            >{{ item.label }}</button>
-          </nav>
         </div>
 
-        <!-- 右侧：主题 + 用户 + 汉堡 -->
-        <div class="nav-right">
+        <!-- 中区：核心导航（flex:none，两侧弹性轨道保证最小间隔） -->
+        <nav class="nav-links">
+            <template v-for="item in navItems" :key="item.path">
+              <!-- 管理后台聚合下拉（HIG：工具栏只保留核心项，次要功能收进菜单） -->
+              <el-dropdown v-if="item.children" trigger="hover" @command="go">
+                <button class="nav-link" :class="{ active: isActive(item) }">
+                  {{ item.label }}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="c in item.children"
+                      :key="c.path"
+                      :command="c.path"
+                      :class="{ 'is-current': route.path.startsWith(c.path) }"
+                    >{{ c.label }}</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <button
+                v-else
+                class="nav-link"
+                :class="{ active: isActive(item) }"
+                @click="go(item.path)"
+              >{{ item.label }}</button>
+            </template>
+          </nav>
+
+        <!-- 右区：主题 + 用户 + 汉堡（与左区同一弹性布局层，天然保证间隔） -->
+        <div class="nav-side nav-side--right">
           <div class="theme-switch" title="主题：自动跟随时间">
             <button :class="{ on: themePref === 'auto' }" @click="setTheme('auto')">
               <el-icon :size="15"><Clock /></el-icon><span>自动</span>
@@ -71,7 +91,7 @@
         </div>
         <nav class="mobile-menu-links">
           <button
-            v-for="item in navItems"
+            v-for="item in mobileItems"
             :key="item.path"
             class="mobile-menu-link"
             :class="{ active: isActive(item) }"
@@ -133,25 +153,39 @@ const avatarText = computed(() => {
   return name ? name.slice(0, 1).toUpperCase() : 'U'
 })
 
-// 顶部导航项（admin 追加管理菜单）
+// 顶部导航项（HIG：核心项平铺，管理类功能聚合为一个下拉，避免顶栏拥挤重叠）
 const baseNav = [
   { label: '智能问答', path: '/chat' },
   { label: '知识库', path: '/document' }
 ]
-const adminNav = [
-  { label: '控制台', path: '/admin/dashboard' },
-  { label: '用户管理', path: '/admin/users' },
-  { label: '文档管理', path: '/admin/documents' },
-  { label: '分类管理', path: '/admin/categories' },
-  { label: '登录日志', path: '/admin/logs' }
-]
+const adminGroup = {
+  label: '管理后台',
+  path: '/admin',
+  children: [
+    { label: '控制台', path: '/admin/dashboard' },
+    { label: '用户管理', path: '/admin/users' },
+    { label: '文档管理', path: '/admin/documents' },
+    { label: '分类管理', path: '/admin/categories' },
+    { label: '反馈统计', path: '/admin/feedback' },
+    { label: '登录日志', path: '/admin/logs' }
+  ]
+}
 const navItems = computed(() => {
   const items = [...baseNav]
-  if (userInfo.value.role === 'admin') items.push(...adminNav)
+  if (userInfo.value.role === 'admin') items.push(adminGroup)
   return items
 })
+// 窄屏全屏菜单：下拉组拍平为一级列表（移动端无悬停，直接铺开更符合触摸交互）
+const mobileItems = computed(() => {
+  const flat = []
+  for (const it of navItems.value) {
+    if (it.children) flat.push(...it.children)
+    else flat.push(it)
+  }
+  return flat
+})
 
-// active 判定：/chat 精确匹配，管理项与文档详情前缀匹配
+// active 判定：/chat 精确匹配，其余前缀匹配；管理组任一子页激活即高亮
 const isActive = (item) => {
   if (item.path === '/chat') {
     return route.path === item.path
@@ -217,19 +251,24 @@ const handleCommand = (command) => {
 .nav-inner {
   position: relative;
   height: 100%;
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 0 var(--space-6);
   display: flex;
-  justify-content: center;
   align-items: center;
 }
 
-/* 品牌 + 导航整体居中 */
-.nav-group {
+/* 三段式单层布局：两侧等宽弹性轨道把中间导航"顶"在正中，
+   右区控件回归文档流——与导航之间永远隔着弹性空间，物理上不可能重叠 */
+.nav-side {
+  flex: 1 1 0;
+  min-width: 96px;      /* 保证最小呼吸间隔 */
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+}
+.nav-side--right {
+  justify-content: flex-end;
+  gap: var(--space-4);
 }
 .brand {
   display: flex;
@@ -255,14 +294,20 @@ const handleCommand = (command) => {
   color: var(--text);
 }
 
-/* 居中文字导航链接（Apple 风） */
+/* 居中文字导航链接（Apple 风）：flex:none 保持内容宽，两侧留出固定呼吸边距 */
 .nav-links {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  flex: none;
+  margin-inline: var(--space-5); /* 与左/右区的最小间隔 */
 }
 .nav-link {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px; /* HIG：保证足够的点击热区 */
   border: none;
   background: transparent;
   font-family: inherit;
@@ -272,6 +317,14 @@ const handleCommand = (command) => {
   border-radius: 8px;
   cursor: pointer;
   transition: color .15s;
+}
+.nav-link svg { opacity: .55; transition: transform .18s, opacity .15s; }
+.nav-link:hover svg { opacity: .9; }
+.el-dropdown:hover :deep(.nav-link svg),
+.el-dropdown:focus-visible :deep(.nav-link svg) { transform: rotate(180deg); }
+.nav-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .nav-link:hover { color: var(--text); }
 .nav-link.active {
@@ -288,17 +341,6 @@ const handleCommand = (command) => {
   height: 2.5px;
   border-radius: 2px;
   background: var(--primary);
-}
-
-/* 右侧：主题 + 用户 + 汉堡 */
-.nav-right {
-  position: absolute;
-  right: var(--space-6);
-  top: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
 }
 
 /* 汉堡按钮：<1100px 显示 */
@@ -502,7 +544,6 @@ const handleCommand = (command) => {
 /* ===== 响应式 ===== */
 /* <1100px：隐藏居中导航，改汉堡全屏菜单 */
 @media (max-width: 1100px) {
-  .nav-inner { justify-content: flex-start; }
   .nav-links { display: none; }
   .hamburger { display: flex; }
 }

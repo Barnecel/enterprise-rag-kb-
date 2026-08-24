@@ -38,10 +38,14 @@ def load_golden(path: str):
                 print(f"[跳过] 第{line_no}行不是合法JSON")
                 continue
             q = (row.get('question') or '').strip()
-            rel = [int(i) for i in (row.get('relevant_doc_ids') or [])]
+            # 兼容两种字段名：relevant_doc_ids（标准）/ key_id（简写）
+            rel_raw = row.get('relevant_doc_ids') or row.get('key_id') or []
+            rel = [int(i) for i in rel_raw]
             if not q or not rel:
+                print(f"[跳过] 第{line_no}行缺少 question 或相关文档ID")
                 continue
-            items.append({'question': q, 'relevant': set(rel), 'note': row.get('note', '')})
+            note = row.get('note') or '/'.join(row.get('tags') or [])
+            items.append({'question': q, 'relevant': set(rel), 'note': note})
     return items
 
 

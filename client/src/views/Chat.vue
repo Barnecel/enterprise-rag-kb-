@@ -123,6 +123,29 @@
                   <span v-if="doc.rerank_norm != null || doc.score != null" class="doc-score">相似度: {{ ((doc.rerank_norm || doc.score || 0) * 100).toFixed(1) }}%</span>
                 </div>
               </div>
+              <!-- 反馈按钮（仅 AI 消息） -->
+              <div v-if="msg.type === 'ai'" class="feedback-btns">
+                <el-button
+                  size="small"
+                  type="primary"
+                  :plain="msg.feedback_given !== 1"
+                  circle
+                  @click="submitFeedback(msg, 1)"
+                  :disabled="sending"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  :plain="msg.feedback_given !== -1"
+                  circle
+                  @click="submitFeedback(msg, -1)"
+                  :disabled="sending"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l7 5 7-5v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/></svg>
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
@@ -474,6 +497,28 @@ const scrollToBottom = (force = false) => {
       el.scrollTop = el.scrollHeight
     }
   })
+}
+
+// 提交反馈（点赞/点踩）
+const submitFeedback = async (msg, rating) => {
+  // 需要 history_id，这里暂时从消息中获取，如果没有则提示
+  const historyId = msg.history_id || msg.id
+  if (!historyId) {
+    ElMessage.warning('无法获取记录ID，无法提交反馈')
+    return
+  }
+  try {
+    await qaAPI.submitFeedback({
+      history_id: historyId,
+      rating,
+      reason: rating === -1 ? (prompt('请简要说明踩的原因（可选）') || '') : ''
+    })
+    ElMessage.success('感谢反馈！')
+    // 更新本地状态显示已反馈
+    msg.feedback_given = rating
+  } catch (error) {
+    console.error('提交反馈失败:', error)
+  }
 }
 
 // 监听用户滚动意图：上滑查看历史时停止自动跟随
@@ -971,6 +1016,46 @@ onBeforeUnmount(() => {
   padding: var(--space-4) var(--space-6) var(--space-6);
   background: var(--bg);
   flex: none;
+}
+
+/* 反馈按钮 */
+.feedback-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--border);
+}
+.feedback-btns :deep(.el-button--circle) {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.feedback-btns :deep(.el-button--primary:not(.is-plain)) {
+  background: var(--grad-btn);
+  border-color: transparent;
+}
+.feedback-btns :deep(.el-button--danger:not(.is-plain)) {
+  background: linear-gradient(135deg, #ff4d4f, #ff7875);
+  border-color: transparent;
+}
+.feedback-btns :deep(.el-button--primary.is-plain),
+.feedback-btns :deep(.el-button--danger.is-plain) {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+.feedback-btns :deep(.el-button--primary.is-plain:hover),
+.feedback-btns :deep(.el-button--danger.is-plain:hover) {
+  background: var(--hover);
+}
+.feedback-btns :deep(.el-button--primary.is-plain:not(:disabled):hover) {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.feedback-btns :deep(.el-button--danger.is-plain:not(:disabled):hover) {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
 }
 
 /* ===== 窄屏：对话边栏转抽屉 ===== */

@@ -243,3 +243,22 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   opacity: 0;
   transform: translateY(-4px);
 }
+
+/* ===== 无障碍（Apple HIG: Accessibility & Full Keyboard Access） ===== */
+/* 键盘导航时焦点清晰可见（鼠标点击不显示，仅 Tab 聚焦触发） */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* 尊重系统"减弱动态效果"设置：关闭装饰性动画与过渡 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
