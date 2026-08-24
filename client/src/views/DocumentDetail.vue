@@ -85,8 +85,22 @@
           </div>
         </template>
 
-        <!-- 单视图：纯预览（大 PDF 直接内嵌） -->
-        <template v-else>
+        <!-- 大 PDF：摘要条 + 按需加载的全文阅读（不再内嵌巨型原文件） -->
+        <div v-if="bigPdf" class="fulltext-wrap">
+          <div v-if="!fullLoaded" class="fulltext-entry">
+            <p class="fulltext-hint">已解析全文约 {{ (parsed?.total_length || 0).toLocaleString() }} 字（扫描版经 OCR 提取）</p>
+            <div class="fulltext-actions">
+              <el-button type="primary" :loading="fullLoading" @click="loadFull">加载全文阅读</el-button>
+              <el-button @click="viewOriginal">查看原 PDF（新标签）</el-button>
+            </div>
+          </div>
+          <div v-else class="text-viewer fulltext-viewer">
+            <pre class="pre-text">{{ fullText }}</pre>
+          </div>
+        </div>
+
+        <!-- 单视图：纯预览（其他大文件直接内嵌） -->
+        <template v-else-if="!bigPdf">
           <div v-if="viewerUrl" class="preview-full">
             <iframe :src="viewerUrl" class="preview-frame"></iframe>
           </div>
@@ -199,6 +213,33 @@ const isPreviewable = computed(() => ['pdf', 'txt', 'md', 'doc', 'docx', 'wps', 
 
 const showBoth = computed(() => parsed.value && parsed.value.small && !pptLike.value)
 const isTextOnly = computed(() => parsed.value && (pptLike.value || (parsed.value.small && !isPreviewable.value)))
+// 大 PDF：跳过巨型原文件内嵌，改走按需全文阅读
+const bigPdf = computed(() => parsed.value && !parsed.value.small && doc.value.file_type === 'pdf')
+
+// 全文按需加载（缓存于服务端 tb_document.content，一次拉取本地滚动）
+const fullText = ref('')
+const fullLoading = ref(false)
+const fullLoaded = ref(false)
+const loadFull = async () => {
+  fullLoading.value = true
+  try {
+    const res = await documentAPI.parsed(docId, { full: 1 })
+    fullText.value = res.data?.text || ''
+    fullLoaded.value = true
+  } catch (e) {
+    ElMessage.error('全文加载失败')
+  } finally {
+    fullLoading.value = false
+  }
+}
+// 原文件按需获取后新标签打开（避免 664MB 常驻页面内存）
+const viewOriginal = async () => {
+  ElMessage.info('原文件较大，正在准备...')
+  try {
+    await viewerFetch(docId)
+    if (viewerUrl.value) window.open(viewerUrl.value)
+  } catch { ElMessage.error('原文件打开失败') }
+}
 
 const goBack = () => {
   if (window.history.length > 1) router.back()
@@ -241,7 +282,7 @@ const init = async () => {
     }
     parsed.value = p && p.text ? p : null
 
-    const needsPreview = isPreviewable.value && !pptLike.value
+    const needsPreview = isPreviewable.value && !pptLike.value && !bigPdf.value
     if (needsPreview) {
       viewerFetch(docId).catch(() => {})
     }
@@ -379,6 +420,37 @@ init()
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* 大PDF全文阅读 */
+.fulltext-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-5) var(--space-5);
+}
+.fulltext-entry {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.fulltext-hint { color: var(--text3); font-size: 13px; margin: 0; }
+.fulltext-actions { display: flex; gap: 10px; }
+.fulltext-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
 
 /* 摘要条（大 PDF）：背景用卡片色而非软主色，保证暗色主题下文字对比度 */
 .summary-bar {

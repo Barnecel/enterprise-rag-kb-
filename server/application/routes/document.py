@@ -968,6 +968,9 @@ def parsed_document(current_user, doc_id):
 
     if small:
         body, truncated = text, False
+    elif request.args.get('full') in ('1', 'true') and has_cache:
+        # 大文档全文模式：缓存的解析全文直接返回（前端滚动阅读）
+        body, truncated = text, False
     else:
         # 大文档：取开头摘要（截断时提示）
         body = text[:2000]
@@ -982,6 +985,7 @@ def parsed_document(current_user, doc_id):
             'file_type': ftype,
             'size': size,
             'small': small,
+            'total_length': len(text),
             'text': body or '（该文档暂无文字内容）',
             'truncated': truncated,
             'source': source

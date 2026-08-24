@@ -352,14 +352,15 @@ class RAGService:
                 return False
             _write_parse_stats(doc_id, file_path, stats)
 
-            # 生成文本预览（文档摘要），写入 tb_document.content 供前端展示
+            # 生成文本预览（全文），写入 tb_document.content 供前端详情/全文阅读
+            # 列已升级 MEDIUMTEXT(16MB)；保留 400万字符安全上限防极端文件
             from application.utils.db_utils import execute_update
             preview = '\n'.join(e.text for e in elements if e.kind in ('text', 'table') and e.text).strip()
             if preview:
                 try:
                     execute_update(
                         "UPDATE tb_document SET content = %s WHERE id = %s",
-                        (preview[:800], doc_id)
+                        (preview[:4_000_000], doc_id)
                     )
                 except Exception as e:
                     logger.warning(f"Failed to update content preview for doc {doc_id}: {e}")

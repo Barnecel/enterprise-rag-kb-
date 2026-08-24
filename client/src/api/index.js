@@ -146,7 +146,7 @@ export const documentAPI = {
   // 在线预览内容（返回 blob：PDF/PPT 转 PDF 为原格式，文本文档为 UTF-8 文本）
   view: (docId) => api.get(`/document/view/${docId}`, { responseType: 'blob' }),
   // 文档内容/摘要（小文档全文、大文档摘要；用于全屏详情页文本区）
-  parsed: (docId) => api.get(`/document/parsed/${docId}`),
+  parsed: (docId, params) => api.get(`/document/parsed/${docId}`, { params }),
   // 更新文档元数据（标题/分类/密级，admin或所有者）
   update: (docId, data) => api.put(`/document/${docId}`, data),
   // 获取文档ACL授权列表
