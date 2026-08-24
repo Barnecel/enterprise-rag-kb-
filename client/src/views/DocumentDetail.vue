@@ -380,11 +380,11 @@ init()
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 摘要条（大 PDF） */
+/* 摘要条（大 PDF）：背景用卡片色而非软主色，保证暗色主题下文字对比度 */
 .summary-bar {
   flex: none;
-  background: var(--primary-soft);
-  border-bottom: 1px solid var(--primary-border, var(--el-color-primary-light-5));
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
   padding: var(--space-4) var(--space-6);
 }
 .summary-title {
