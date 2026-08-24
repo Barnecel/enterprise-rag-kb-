@@ -455,6 +455,8 @@ init()
 /* 摘要条（大 PDF）：背景用卡片色而非软主色，保证暗色主题下文字对比度 */
 .summary-bar {
   flex: none;
+  max-height: 30vh;      /* 摘要只做预告，内部滚动，避免把"加载全文"主操作挤出首屏 */
+  overflow-y: auto;
   background: var(--card);
   border-bottom: 1px solid var(--border);
   padding: var(--space-4) var(--space-6);
