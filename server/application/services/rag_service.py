@@ -700,10 +700,16 @@ class RAGService:
         else:
             rows = execute_query(sql + " ORDER BY id DESC LIMIT %s", params + (limit,))
 
-        if not rows and keyword:
-            # 无标题匹配：不再回退注入全部文档（伪卡片会以1e9分挤掉真实检索结果）；
-            # 返回空让LLM基于空上下文如实作答
-            return []
+        if not rows:
+            # 强枚举意图(如"文档有哪些"/"列出所有资料")且标题无匹配 → 兜底列出全部，让LLM如实作答
+            # 弱意图(仅命中"有哪些/有什么"但无文档上下文) → 返回空，避免伪卡片挤掉真实检索结果
+            strong = re.search(
+                r'(文档|资料|文件|知识库).{0,6}(有哪些|有什么|清单|列出)|列出.{0,8}(所有|全部)|(所有|全部).{0,4}(文档|资料|文件)',
+                query)
+            if strong:
+                rows = execute_query(sql + " ORDER BY id DESC LIMIT %s", base_params + (limit,))
+            else:
+                return []
 
         pseudo = []
         for i, r in enumerate(rows):
