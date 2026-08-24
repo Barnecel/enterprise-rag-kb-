@@ -38,6 +38,7 @@ def create_app():
     from application.routes.category import category_bp
     from application.routes.qa import qa_bp
     from application.routes.admin import admin_bp
+    from application.routes.model import model_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(user_bp, url_prefix='/api/user')
@@ -45,6 +46,7 @@ def create_app():
     app.register_blueprint(category_bp, url_prefix='/api/category')
     app.register_blueprint(qa_bp, url_prefix='/api/qa')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(model_bp, url_prefix='/api/model')
 
     # 创建上传目录
     upload_folder = os.path.join(os.path.dirname(__file__), 'uploads')
