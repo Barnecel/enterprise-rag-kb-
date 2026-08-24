@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-模型 A/B 对比测试（RAG地狱五题）
-自动完成：切换模型A → 逐题问答计时 → 切换模型B → 同样流程 → 输出盲评格式结果
-- 主结果文件只含 样本A/样本B，不含型号（供LLM裁判盲评）
-- 型号映射写入独立文件 compare_mapping.json（自己留好，别贴给裁判）
+模型 A/B 对比测试（RAG地狱五题）—— 直填URL版
+用方法：
+  1. 改下面 MODEL_A / MODEL_B 三个字段（api_base 含 /v1；本地服务 key 可随便填）
+  2. ../.venv/bin/python scripts/compare_models.py        # 全量5题
+     ../.venv/bin/python scripts/compare_models.py --limit 1   # 冒烟
+  3. 生成 data/compare_A_*.json 和 compare_B_*.json 两份回答文件
+     → 把两份都贴给裁判盲评（文件名不含型号，裁判不知道谁是谁）
 
-用法（server目录）:
-    ../.venv/bin/python scripts/compare_models.py --a 1 --b 2
-    可选: --limit 1   # 每个模型只跑前N题（快速冒烟）
+常用端点速查：
+  oMLX本地    http://127.0.0.1:8000/v1
+  LM Studio   http://localhost:1234/v1
+  Ollama      http://localhost:11434/v1
+  DeepSeek    https://api.deepseek.com/v1
+  通义兼容    https://dashscope.aliyuncs.com/compatible-mode/v1
 """
 
 import argparse
@@ -20,10 +26,19 @@ from datetime import datetime
 SERVER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SERVER_DIR)
 
-from application.services.rag_service import get_rag_service  # noqa: E402
-from application.utils.db_utils import execute_query, execute_update  # noqa: E402
+# ================== 在这里填两个模型 ==================
+MODEL_A = {
+    "api_base": "http://127.0.0.1:8000/v1",
+    "api_key": "omlx-***REMOVED***",
+    "model_name": "Qwen3.5-9B-MLX-4bit",
+}
+MODEL_B = {
+    "api_base": "",          # 例: http://localhost:1234/v1
+    "api_key": "",
+    "model_name": "",        # 例: qwen3.8-27b-ud-iq3_xxs
+}
+# =====================================================
 
-# RAG地狱五题（与评分锚点配套，见答辩材料）
 QUESTIONS = [
     {"id": "Q1", "type": "多跳对比", "q": "传唤和继续盘问有什么区别？各自的时限是多久？"},
     {"id": "Q2", "type": "否定排除", "q": "哪些人不适用继续盘问？"},
@@ -33,95 +48,77 @@ QUESTIONS = [
 ]
 
 
-def load_llm_config(model_id):
-    rows = execute_query("SELECT * FROM tb_model_config WHERE id=%s", (model_id,))
-    if not rows:
-        print(f"模型配置 #{model_id} 不存在")
+def validate(cfg, label):
+    if not cfg.get("api_base", "").startswith(("http://", "https://")):
+        print(f"{label} 的 api_base 未填写或非法，请编辑脚本顶部配置块")
         sys.exit(1)
-    r = rows[0]
-    if r['model_type'] != 'llm':
-        print(f"配置 #{model_id}「{r['name']}」不是生成模型（{r['model_type']}），对比仅支持 llm 类型")
+    if not cfg.get("model_name", "").strip():
+        print(f"{label} 的 model_name 未填写")
         sys.exit(1)
-    return r
-
-
-def activate(svc, cfg):
-    """与 /api/model/<id>/activate 的 LLM 分支一致：DB标记 + 热切换 + 清缓存"""
-    execute_update("UPDATE tb_model_config SET is_active=0 WHERE model_type='llm'")
-    execute_update("UPDATE tb_model_config SET is_active=1 WHERE id=%s", (cfg['id'],))
-    svc.hot_swap_llm({'api_base': cfg['api_base'], 'api_key': cfg['api_key'], 'model_name': cfg['model_name']})
 
 
 def run_suite(svc, label, limit):
     results = []
-    for i, item in enumerate(QUESTIONS[:limit]):
+    for item in QUESTIONS[:limit]:
         t0 = time.time()
         try:
-            r = svc.answer_question(item['q'], user_id=1, tenant_id=1, clearance_level=5)
-            answer = r.get('answer') or ''
-            sources = [s if isinstance(s, int) else s.get('id') for s in r.get('source_documents', [])]
+            r = svc.answer_question(item["q"], user_id=1, tenant_id=1, clearance_level=5)
+            answer = r.get("answer") or ""
+            sources = [s if isinstance(s, int) else s.get("id") for s in r.get("source_documents", [])]
         except Exception as e:
             answer, sources = f"（调用失败: {str(e)[:120]}）", []
         dt = time.time() - t0
         results.append({
-            'qid': item['id'], 'type': item['type'], 'question': item['q'],
-            'answer': answer, 'seconds': round(dt, 1), 'cited_docs': sources
+            "qid": item["id"], "type": item["type"], "question": item["q"],
+            "answer": answer, "seconds": round(dt, 1), "cited_docs": sources,
         })
         print(f"  [{label}] {item['id']} {item['type']} {dt:.0f}s 答案{len(answer)}字")
     return results
 
 
 def main():
-    ap = argparse.ArgumentParser(description='模型A/B对比（RAG地狱五题）')
-    ap.add_argument('--a', type=int, required=True, help='模型配置ID·样本A')
-    ap.add_argument('--b', type=int, required=True, help='模型配置ID·样本B')
-    ap.add_argument('--limit', type=int, default=5, help='每模型题数上限（默认5）')
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--limit", type=int, default=5, help="题数上限（默认5）")
     args = ap.parse_args()
 
-    cfg_a, cfg_b = load_llm_config(args.a), load_llm_config(args.b)
+    validate(MODEL_A, "MODEL_A")
+    validate(MODEL_B, "MODEL_B")
+
+    from application.services.rag_service import get_rag_service, LLM_CONFIG
     svc = get_rag_service()
+    original = dict(LLM_CONFIG)   # 跑完恢复原配置，不影响线上
 
-    out_dir = os.path.join(SERVER_DIR, 'data')
+    out_dir = os.path.join(SERVER_DIR, "data")
     os.makedirs(out_dir, exist_ok=True)
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    print(f"=== 样本A：先跑 #{cfg_a['id']} ===")
-    activate(svc, cfg_a)
-    res_a = run_suite(svc, 'A', args.limit)
+    summary = {}
+    try:
+        for label, cfg in (("A", MODEL_A), ("B", MODEL_B)):
+            print(f"=== 样本{label}：{cfg['model_name']} @ {cfg['api_base']} ===")
+            svc.hot_swap_llm(cfg)   # 热切换并清缓存，两模型互不串味
+            results = run_suite(svc, label, args.limit)
+            summary[label] = {
+                "avg_seconds": round(sum(r["seconds"] for r in results) / len(results), 1),
+                "results": results,
+            }
+    finally:
+        LLM_CONFIG.update(original)
+        try:
+            svc.cache_manager.clear_all()
+        except Exception:
+            pass
+        print("已恢复原模型配置")
 
-    print(f"=== 样本B：#{cfg_b['id']} ===")
-    activate(svc, cfg_b)
-    res_b = run_suite(svc, 'B', args.limit)
+    for label in ("A", "B"):
+        path = os.path.join(out_dir, f"compare_{label}_{ts}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"sample": label, **summary[label]}, f, ensure_ascii=False, indent=2)
+        print(f"样本{label} 回答文件: {path}")
 
-    # 收尾：恢复A为启用态（避免停留在B）
-    activate(svc, cfg_a)
-
-    # 盲评主文件（无型号信息）
-    blind = {
-        'generated_at': ts,
-        'note': '盲评用。样本A=先测者，样本B=后测者；型号映射见 compare_mapping.json',
-        'questions': QUESTIONS[:args.limit],
-        'sample_A': res_a,
-        'sample_B': res_b,
-    }
-    blind_path = os.path.join(out_dir, f'compare_results_{ts}.json')
-    with open(blind_path, 'w', encoding='utf-8') as f:
-        json.dump(blind, f, ensure_ascii=False, indent=2)
-
-    # 型号映射（勿贴给裁判）
-    mapping = {
-        'generated_at': ts,
-        'sample_A': {'config_id': cfg_a['id'], 'name': cfg_a['name'], 'model_name': cfg_a['model_name'], 'api_base': cfg_a['api_base']},
-        'sample_B': {'config_id': cfg_b['id'], 'name': cfg_b['name'], 'model_name': cfg_b['model_name'], 'api_base': cfg_b['api_base']},
-    }
-    map_path = os.path.join(out_dir, f'compare_mapping_{ts}.json')
-    with open(map_path, 'w', encoding='utf-8') as f:
-        json.dump(mapping, f, ensure_ascii=False, indent=2)
-
-    print(f"\n完成。盲评结果: {blind_path}")
-    print(f"型号映射(自己留): {map_path}")
-    print("把盲评结果JSON贴给裁判即可，评测后自行对答案。")
+    print(f"\n平均耗时: A={summary['A']['avg_seconds']}s | B={summary['B']['avg_seconds']}s")
+    print("把两份 compare_*.json 一起贴给裁判盲评（文件名不含型号）")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
