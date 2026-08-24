@@ -666,6 +666,9 @@ class RAGService:
         intent = re.search(r'有哪些|有什么|列出|列举|清单|全部|所有|多少(个|份|类|种|篇)|都有什么|包含哪些', query)
         if not intent:
             return []
+        # 对比/差异类问题含"有什么"(如"有什么区别")，不是枚举意图，避免误注入文档卡片
+        if re.search(r'区别|不同|对比|差异|多久|多少天|多少年', query):
+            return []
 
         # 提取内容关键词（去掉意图词与通用词）
         keyword = re.sub(
@@ -698,8 +701,9 @@ class RAGService:
             rows = execute_query(sql + " ORDER BY id DESC LIMIT %s", params + (limit,))
 
         if not rows and keyword:
-            # 无标题匹配：回退为全部可见文档，让LLM如实说明"没有'技术'相关文档"
-            rows = execute_query(sql + " ORDER BY id DESC LIMIT %s", base_params + (limit,))
+            # 无标题匹配：不再回退注入全部文档（伪卡片会以1e9分挤掉真实检索结果）；
+            # 返回空让LLM基于空上下文如实作答
+            return []
 
         pseudo = []
         for i, r in enumerate(rows):
