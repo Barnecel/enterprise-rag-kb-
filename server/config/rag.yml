@@ -45,3 +45,6 @@ tenant:
 enumeration:
   enabled: true
   max_docs: 15           # 枚举查询最多列出文档数
+
+# 嵌入分批大小：整包提交大文档时嵌入服务会掐断连接，按小批多次提交
+embed_batch_size: 16

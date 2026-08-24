@@ -15,6 +15,7 @@ import json
 import pickle
 import shutil
 import threading
+import time
 from typing import List, Dict, Any, Iterator, Optional
 
 import requests
@@ -300,7 +301,8 @@ class RAGService:
         tenant_id: Optional[int] = None,
         doc_level: str = 'public',
         min_level: int = 1,
-        owner_id: Optional[int] = None
+        owner_id: Optional[int] = None,
+        progress_cb=None
     ) -> bool:
         """
         添加文档到向量库（父子索引 + BM25 + 父窗口映射）
@@ -312,6 +314,7 @@ class RAGService:
             doc_level: 文档级别(public/private)，写入块元数据供权限过滤
             min_level: 文档最低密级(1公开/2内部/3机密/4绝密)
             owner_id: 上传者用户ID(所有者恒可见)
+            progress_cb: 可选 progress_cb(done_pages, total_pages) 解析进度回调
 
         Returns:
             bool: 是否成功
@@ -343,7 +346,7 @@ class RAGService:
             min_level = min_level or 1
 
             # 复杂文档解析（text/table/image 元素流，永不抛异常，失败降级）
-            elements, stats = parse_document(file_path)
+            elements, stats = parse_document(file_path, progress_cb=progress_cb)
             if not elements:
                 logger.error(f"Document {doc_id} parsed to empty elements: {stats.get('warnings')}")
                 return False
@@ -378,18 +381,42 @@ class RAGService:
             logger.info(f"Document {doc_id} parsed {len(elements)} elements -> {len(child_chunks)} child chunks"
                         f" (tables={stats['table_count']}, images={stats['image_count']}, ocr_pages={stats['ocr_pages']})")
 
-            # 添加到Chroma向量库
+            # 添加到Chroma向量库（分批嵌入：整包提交会让嵌入服务掐断连接）
+            EMB_BATCH = int(RAG_CONFIG.get('embed_batch_size', 16))
+            total_chunks = len(child_chunks)
+
+            def _embed_progress(done: int, stage: str):
+                if progress_cb:
+                    try:
+                        progress_cb(done, total_chunks, stage)
+                    except Exception:
+                        pass
+
             if self.vectorstore is None:
                 persist_dir = CHROMA_CONFIG['persist_directory']
                 os.makedirs(persist_dir, exist_ok=True)
+                first = child_chunks[:EMB_BATCH]
+                _embed_progress(len(first), 'embed')
                 self.vectorstore = Chroma.from_documents(
-                    documents=child_chunks,
+                    documents=first,
                     embedding=self.embeddings,
                     collection_name=CHROMA_CONFIG['collection_name'],
                     persist_directory=persist_dir
                 )
+                rest = child_chunks[EMB_BATCH:]
             else:
-                self.vectorstore.add_documents(child_chunks)
+                rest = child_chunks
+
+            for i in range(0, len(rest), EMB_BATCH):
+                part = rest[i:i + EMB_BATCH]
+                try:
+                    self.vectorstore.add_documents(part)
+                except Exception:
+                    # 单批失败降级重试一次（更小粒度），仍失败则抛出让上层标记failed
+                    time.sleep(2)
+                    for j in range(i, min(i + EMB_BATCH, len(rest)), max(1, EMB_BATCH // 4)):
+                        self.vectorstore.add_documents(rest[j:j + max(1, EMB_BATCH // 4)])
+                _embed_progress(min(i + EMB_BATCH, total_chunks), 'embed')
 
             # 更新BM25索引与父窗口映射
             self.bm25.add_chunks(child_chunks)

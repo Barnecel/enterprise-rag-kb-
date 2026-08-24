@@ -69,7 +69,7 @@ DROP TABLE IF EXISTS tb_document;
 CREATE TABLE tb_document (
     id INT AUTO_INCREMENT PRIMARY KEY COMMENT '文档ID',
     title VARCHAR(200) NOT NULL COMMENT '文档标题',
-    content TEXT COMMENT '文档内容摘要',
+    content MEDIUMTEXT COMMENT '文档内容摘要',
     file_path VARCHAR(500) COMMENT '文件存储路径',
     file_name VARCHAR(200) COMMENT '原始文件名',
     file_size BIGINT COMMENT '文件大小(字节)',

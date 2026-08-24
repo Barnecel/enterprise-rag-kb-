@@ -9,7 +9,7 @@
         <div class="batch-bar-title">
           {{ batchCancelling ? '正在取消...' : (batchPaused ? '批量上传已暂停' : '批量上传中') }}
         </div>
-        <div class="batch-bar-file">{{ batchCurrentFile || '准备中...' }}</div>
+        <div class="batch-bar-file">{{ batchCurrentFile || '准备中...' }}{{ batchDetail ? ' · ' + batchDetail : '' }}</div>
       </div>
       <el-progress
         :percentage="batchProgress"
@@ -288,6 +288,7 @@ const batchSelectedFiles = ref([])
 // 异步批量上传进度
 const batchPollTimer = ref(null)
 const batchBarVisible = ref(false)   // 页面顶部进度条是否显示
+const batchDetail = ref('')          // 页级进度详情（如"解析第87/319页"）
 const batchSubmitted = ref(false)    // 是否已提交（提交后对话框关闭由进度流程管理）
 const batchProgress = ref(0)
 const batchProgressStatus = ref('')
@@ -401,6 +402,20 @@ const handleUpload = async () => {
     }
 
     const res = await documentAPI.upload(formData)
+
+    // 大文件自动转后台异步：立即返回 batch_id，复用顶部进度条展示页级进度
+    if (res.data?.async && res.data.batch_id) {
+      ElMessage.info(res.message || '文件较大，已转入后台处理')
+      handleDialogClose()
+      loadDocuments()
+      batchUploading.value = true
+      batchSubmitted.value = true
+      batchTotal.value = 1
+      batchBarVisible.value = true
+      pollBatchStatus(res.data.batch_id)
+      return
+    }
+
     console.log('Upload response:', res)
     ElMessage.success('上传成功')
     handleDialogClose()
@@ -496,6 +511,7 @@ const pollBatchStatus = (batchId) => {
   currentBatchId.value = batchId
   batchStatus.value = 'running'
   batchCancelling.value = false
+  batchDetail.value = ''
   stopBatchPolling()
   batchPollTimer.value = setInterval(async () => {
     try {
@@ -503,6 +519,7 @@ const pollBatchStatus = (batchId) => {
       const state = res.data
       batchStatus.value = state.status || 'running'
       batchCurrentFile.value = state.current_file || ''
+      batchDetail.value = state.detail || ''
       batchSuccess.value = state.success_count || 0
       batchFail.value = state.fail_count || 0
       batchTotal.value = state.total || 0

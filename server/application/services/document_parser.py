@@ -105,8 +105,11 @@ def _caption_image(image_bytes: bytes, ocr_text: str) -> str:
 # ---------------------------------------------------------------
 # 统一入口
 # ---------------------------------------------------------------
-def parse_document(file_path: str) -> Tuple[List[Element], dict]:
+def parse_document(file_path: str, progress_cb=None) -> Tuple[List[Element], dict]:
     """按扩展名分派解析，永不抛异常。
+
+    Args:
+        progress_cb: 可选回调 progress_cb(done_pages, total_pages)，用于上报解析/OCR进度
 
     Returns:
         (elements, stats); elements 为空表示解析失败/无内容
@@ -122,7 +125,7 @@ def parse_document(file_path: str) -> Tuple[List[Element], dict]:
         elif ext in ('.doc', '.wps', '.rtf', '.ppt', '.pptx'):
             elements = _parse_via_libreoffice(file_path, ext, stats)
         elif ext == '.pdf':
-            elements = _parse_pdf(file_path, stats)
+            elements = _parse_pdf(file_path, stats, progress_cb=progress_cb)
         else:
             stats['warnings'].append(f"unsupported extension {ext}")
             return [], stats
@@ -365,7 +368,7 @@ def _borderless_table_grid(page) -> Tuple[List[List[str]], tuple]:
     return grid, bbox
 
 
-def _parse_pdf(path: str, stats: dict) -> List[Element]:
+def _parse_pdf(path: str, stats: dict, progress_cb=None) -> List[Element]:
     import fitz
     import pdfplumber
 
@@ -437,6 +440,13 @@ def _parse_pdf(path: str, stats: dict) -> List[Element]:
                 for bbox, md in table_infos:
                     elements.append(Element('table', md, pno + 1, order))
                     order += 1
+
+                # 页级进度上报（供批量任务进度条展示"第x/N页"）
+                if progress_cb:
+                    try:
+                        progress_cb(pno + 1, doc.page_count, 'parse')
+                    except Exception:
+                        pass
     finally:
         doc.close()
     return elements

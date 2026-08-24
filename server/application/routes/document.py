@@ -196,10 +196,14 @@ def upload_document(current_user):
                 'data': {'existing_id': existing_docs[0]['id']}
             }), 409
 
-    # 插入数据库记录
+    # 插库。大文件走异步(pending，后台批量线程向量化)，小文件同步(processing)
+    _async_cfg = DOCUMENT_CONFIG.get('async_upload', {}) if isinstance(DOCUMENT_CONFIG, dict) else {}
+    use_async = (bool(_async_cfg.get('enabled', True))
+                 and file_size > float(_async_cfg.get('size_mb', 10)) * 1024 * 1024)
+    init_status = 'pending' if use_async else 'processing'
     insert_sql = """
         INSERT INTO tb_document (title, file_path, file_name, file_type, file_size, file_hash, category_id, tenant_id, status, upload_by, doc_level, min_level)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'processing', %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     doc_id = execute_insert(insert_sql, (
         title,
@@ -210,10 +214,24 @@ def upload_document(current_user):
         file_hash,
         category_id,
         current_user.get('tenant_id', 1),
+        init_status,
         current_user['user_id'],
         doc_level,
         min_level
     ))
+
+    # 大文件自动转异步：立即返回 batch_id，前端轮询进度（含OCR页级进度）
+    if use_async:
+        batch_id = _launch_batch(
+            [(doc_id, file_path, file.filename, title)],
+            current_user.get('tenant_id', 1), doc_level, min_level, current_user['user_id']
+        )
+        return jsonify({
+            'code': 201,
+            'message': f'文件较大({file_size/1024/1024:.0f}MB)，已转入后台处理',
+            'data': {'id': doc_id, 'title': title, 'file_name': file.filename,
+                     'batch_id': batch_id, 'async': True}
+        }), 201
 
     # 异步触发向量化和内容提取(这里直接调用)
     try:
@@ -320,6 +338,40 @@ def _wait_then_cancel(state, mode):
     _perform_batch_cancel(state, mode)
 
 
+def _launch_batch(work, tenant_id, doc_level, min_level, owner_id,
+                  stage_fail_count=0, stage_fail_list=None):
+    """创建批量任务状态并启动后台线程（单文件大文档异步化与批量上传共用）"""
+    batch_id = uuid.uuid4().hex
+    state = {
+        'batch_id': batch_id,
+        'total': len(work),
+        'processed': 0,
+        'success_count': 0,
+        'fail_count': 0,
+        'stage_fail_count': stage_fail_count,
+        'stage_fail_list': stage_fail_list or [],
+        'current_file': '',
+        'detail': '',
+        'status': 'running',
+        'paused': False,
+        'cancelled': False,
+        'processing': False,
+        'thread_stopped': False,
+        'doc_ids': [d[0] for d in work],
+        'processed_ids': [],
+        'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'results': []
+    }
+    with _batch_lock:
+        _batch_jobs[batch_id] = state
+    threading.Thread(
+        target=_process_batch,
+        args=(batch_id, work, tenant_id, doc_level, min_level, owner_id),
+        daemon=True
+    ).start()
+    return batch_id
+
+
 def _process_batch(batch_id, work, tenant_id, doc_level, min_level, owner_id):
     """后台线程：逐个向量化 work 中的 (doc_id, file_path, filename, title)。支持暂停/恢复/取消。"""
     state = _batch_jobs.get(batch_id)
@@ -354,9 +406,17 @@ def _process_batch(batch_id, work, tenant_id, doc_level, min_level, owner_id):
                         state['processing'] = False
                     break
             try:
+                def _progress(done, total, stage='parse'):
+                    """解析/向量化进度 → 写入批量状态供前端轮询展示"""
+                    label = {'parse': '解析', 'embed': '向量化'}.get(stage, stage)
+                    with _batch_lock:
+                        if state is not None:
+                            state['detail'] = f"{label} {done}/{total}"
+
                 ok = rag_service.add_document_to_vectorstore(
                     file_path, doc_id=doc_id, tenant_id=tenant_id,
-                    doc_level=doc_level, min_level=min_level, owner_id=owner_id)
+                    doc_level=doc_level, min_level=min_level, owner_id=owner_id,
+                    progress_cb=_progress)
             except Exception as e:
                 print(f"批量向量化失败 {filename}: {e}")
                 ok = False
@@ -366,6 +426,8 @@ def _process_batch(batch_id, work, tenant_id, doc_level, min_level, owner_id):
             except Exception as e:
                 print(f"更新状态失败 {filename}: {e}")
             with _batch_lock:
+                if state is not None:
+                    state.pop('detail', None)
                 if state:
                     state['processed'] += 1
                     state['processed_ids'].append(doc_id)
@@ -483,32 +545,8 @@ def batch_upload_documents(current_user):
             'data': {'batch_id': None, 'total': 0, 'stage_fail_count': stage_fail_count, 'stage_fail_list': stage_fail}
         })
 
-    batch_id = uuid.uuid4().hex
-    state = {
-        'batch_id': batch_id,
-        'total': len(work),
-        'processed': 0,
-        'success_count': 0,
-        'fail_count': 0,
-        'stage_fail_count': stage_fail_count,
-        'current_file': '',
-        'status': 'running',
-        'paused': False,
-        'cancelled': False,
-        'processing': False,
-        'thread_stopped': False,
-        'doc_ids': [d[0] for d in work],
-        'processed_ids': [],
-        'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
-        'results': []
-    }
-    with _batch_lock:
-        _batch_jobs[batch_id] = state
-    threading.Thread(
-        target=_process_batch,
-        args=(batch_id, work, tenant_id, doc_level, min_level, owner_id),
-        daemon=True
-    ).start()
+    batch_id = _launch_batch(work, tenant_id, doc_level, min_level, owner_id,
+                             stage_fail_count=stage_fail_count, stage_fail_list=stage_fail)
 
     return jsonify({
         'code': 200,
