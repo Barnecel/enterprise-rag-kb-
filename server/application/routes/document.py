@@ -947,16 +947,16 @@ def parsed_document(current_user, doc_id):
     small = size > 0 and size <= 0.5 * 1024 * 1024
     cached = (doc.get('content') or '').strip()
 
-    # 已有缓存且文档小 → 直接返回缓存
-    if small and cached and ('暂无摘要' not in cached):
+    # 有缓存一律直接用（与文件大小无关）：大文档重新解析=重跑整本OCR，代价不可接受
+    has_cache = bool(cached) and ('暂无摘要' not in cached)
+    if has_cache:
         text = cached
         source = 'cache'
     else:
         try:
             from application.services.document_parser import parse_document
             stats = {'warnings': []}
-            with _convert_lock:
-                elements, parse_stats = parse_document(doc['file_path'])
+            elements, parse_stats = parse_document(doc['file_path'])
             text = '\n'.join(e.text for e in elements if e.text and e.text.strip())
             text = text or cached
             source = 'parsed'
