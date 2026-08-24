@@ -245,8 +245,7 @@ export const qaAPI = {
 }
 
 // 管理员API
-export const adminAPI = {
-  // 获取仪表盘统计
+export const adminAPI = {  // 获取仪表盘统计
   getDashboard: () => api.get('/admin/dashboard'),
   // 获取每日统计
   getDailyStats: (days) => api.get('/admin/statistics/daily', { params: { days } }),
@@ -261,3 +260,23 @@ export const adminAPI = {
 }
 
 export default api
+// 模型接入管理API（管理员，OpenAI兼容端点）
+export const modelAPI = {
+  // 配置列表（密钥打码）
+  list: () => api.get('/model/list'),
+  // 新增配置 {name, model_type:'llm'|'embedding', api_base, api_key, model_name, remark}
+  add: (data) => api.post('/model', data),
+  // 编辑
+  update: (id, data) => api.put(`/model/${id}`, data),
+  // 删除
+  remove: (id) => api.delete(`/model/${id}`),
+  // 连接测试：LLM试生成 / 嵌入探测维度
+  test: (id) => api.post(`/model/${id}/test`),
+  // 启用切换（嵌入维度不兼容时返回 rebuild_required）
+  activate: (id) => api.post(`/model/${id}/activate`),
+  // 当前运行时实际生效的模型
+  activeRuntime: () => api.get('/model/active'),
+  // 触发向量库全量重建 + 查询重建进度
+  rebuildVectors: () => api.post('/model/rebuild_vectors'),
+  rebuildStatus: () => api.get('/model/rebuild_status')
+}

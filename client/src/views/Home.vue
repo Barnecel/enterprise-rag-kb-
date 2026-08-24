@@ -166,6 +166,7 @@ const adminGroup = {
     { label: '用户管理', path: '/admin/users' },
     { label: '文档管理', path: '/admin/documents' },
     { label: '分类管理', path: '/admin/categories' },
+    { label: '模型接入', path: '/admin/models' },
     { label: '反馈统计', path: '/admin/feedback' },
     { label: '登录日志', path: '/admin/logs' }
   ]
