@@ -213,13 +213,15 @@ def ask_question_stream(current_user):
                 INSERT INTO tb_qa_history (user_id, conversation_id, question, answer, documents, model_used, token_count)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
-            execute_insert(history_sql, (
+            new_history_id = execute_insert(history_sql, (
                 user_id, conv_id, question, full_answer,
                 json.dumps(list(dict.fromkeys(source_docs))),
                 model_used,
                 len(question) + len(full_answer)
             ))
             _touch_conversation(conv_id)
+            # 落库后补发 history_id，前端用它提交点赞/点踩反馈
+            yield f"data: {json.dumps({'type': 'status', 'phase': 'saved', 'history_id': new_history_id}, ensure_ascii=False)}\n\n"
         except Exception as e:
             print(f"record qa history failed: {e}")
 

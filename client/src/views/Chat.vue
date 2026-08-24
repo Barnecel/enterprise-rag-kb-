@@ -280,6 +280,7 @@ const switchConversation = async (conv, silent = false) => {
         type: 'ai',
         content: row.answer,
         time: row.created_at,
+        history_id: row.id,
         documents: (row.documents || []).map(d => ({ id: d.id, title: d.title, rerank_norm: null, score: null }))
       }
     ])
@@ -443,6 +444,10 @@ const handleSend = async () => {
         if (event.phase === 'thinking') {
           aiMsg.documents = event.retrieved_docs || []
         }
+        // 回答落库后服务端补发 history_id，供反馈按钮使用
+        if (event.phase === 'saved' && event.history_id) {
+          aiMsg.history_id = event.history_id
+        }
         scrollToBottom()
       },
       onToken: (delta) => {
@@ -499,23 +504,29 @@ const scrollToBottom = (force = false) => {
   })
 }
 
-// 提交反馈（点赞/点踩）
+// 提交反馈（点赞/点踩）；点踩可选填原因，重复提交即修改（后端幂等 upsert）
 const submitFeedback = async (msg, rating) => {
-  // 需要 history_id，这里暂时从消息中获取，如果没有则提示
-  const historyId = msg.history_id || msg.id
+  const historyId = msg.history_id
   if (!historyId) {
-    ElMessage.warning('无法获取记录ID，无法提交反馈')
+    ElMessage.warning('该回答尚未保存完成，请稍后再评价')
     return
   }
+  let reason = ''
+  if (rating === -1) {
+    try {
+      const { value } = await ElMessageBox.prompt(
+        '这条回答哪里不满意？帮助我们一起改进（可选）', '反馈问题',
+        { confirmButtonText: '提交', cancelButtonText: '跳过', inputPlaceholder: '例如：答案不准确 / 没有引用文档...', inputValidator: (v) => !v || v.length <= 255 || '最多255字' }
+      )
+      reason = (value || '').trim()
+    } catch {
+      // 用户取消也照常提交差评，只是不带原因
+    }
+  }
   try {
-    await qaAPI.submitFeedback({
-      history_id: historyId,
-      rating,
-      reason: rating === -1 ? (prompt('请简要说明踩的原因（可选）') || '') : ''
-    })
-    ElMessage.success('感谢反馈！')
-    // 更新本地状态显示已反馈
+    await qaAPI.submitFeedback({ history_id: historyId, rating, reason })
     msg.feedback_given = rating
+    ElMessage.success(rating === 1 ? '感谢认可！' : '已收到反馈，我们会改进')
   } catch (error) {
     console.error('提交反馈失败:', error)
   }
