@@ -9,6 +9,7 @@
 - 永不抛异常，失败降级不阻塞入库
 """
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -37,6 +38,15 @@ class Element:
     page: int = 0       # 1-based 页码（docx 为启发式）
     order: int = 0      # 全局序号，保证文档顺序
     extra: dict = field(default_factory=dict)
+
+_CJK_GAP = re.compile(r'(?<=[\u4e00-\u9fff\u3000-\u303f\uff01-\uffee])\s+(?=[\u4e00-\u9fff\u3000-\u303f\uff01-\uffee])')
+
+
+def _normalize_cjk_text(text: str) -> str:
+    """OCR断行修复：合并汉字之间的空白/换行（"一名以\n上"→"一名以上"）。
+    数字/拉丁字符旁的空格保留（避免"不满 16 周岁"黏连）。"""
+    return _CJK_GAP.sub('', text or '')
+
 
 
 # ---------------------------------------------------------------
@@ -135,6 +145,11 @@ def parse_document(file_path: str, progress_cb=None) -> Tuple[List[Element], dic
         stats['text_blocks'] = sum(1 for e in elements if e.kind == 'text')
         stats['table_count'] = sum(1 for e in elements if e.kind == 'table')
         stats['image_count'] = sum(1 for e in elements if e.kind == 'image')
+        for _el in elements:
+            try:
+                _el.text = _normalize_cjk_text(_el.text)
+            except Exception:
+                pass
         return elements, stats
     except Exception as e:
         stats['warnings'].append(f"parse failed: {e}")

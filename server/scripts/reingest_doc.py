@@ -32,6 +32,12 @@ def main():
 
     execute_update("UPDATE tb_document SET status='processing' WHERE id=%s", (doc_id,))
     svc = get_rag_service()
+    # 先清旧向量（防双写：规范化后文本变化，内容哈希去重无法识别）
+    try:
+        svc.delete_document_from_vectorstore(doc_id)
+        print('已清除旧向量')
+    except Exception as e:
+        print(f'清除旧向量失败(可忽略若本无): {e}')
 
     t0 = time.time()
     print(f"[{time.strftime('%H:%M:%S')}] 开始重入库 doc#{doc_id}: {r['file_path']}")
