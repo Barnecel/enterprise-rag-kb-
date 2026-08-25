@@ -35,7 +35,7 @@ MODEL_A = {
 }
 MODEL_B = {
     "api_base": "",          # 留空=不测；例: http://127.0.0.1:8000/v1
-    "api_key": "",           # 例: omlx-***REMOVED***
+    "api_key": "",           # 例: omlx-your-key（勿提交真实key）
     "model_name": "",        # 例: Qwen3.5-9B-MLX-4bit
 }
 # ================== 裁判模型（可选，留空则不自动打分） ==================
