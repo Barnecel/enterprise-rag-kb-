@@ -1,139 +1,71 @@
-# 企业RAG知识库问答Agent系统
+# 企业知识库智能问答系统（RAG）
 
-基于LangChain的RAG（检索增强生成）企业内部知识库问答系统，使用Flask + Vue3开发。
+> 混合检索 + 多模型热插拔 + 评测驱动的企业级 RAG 问答系统
+> Python · Flask · Vue3 · LangChain · ChromaDB · BM25(jieba) · Cross-Encoder · 本地化大模型(Qwen3)
 
-## 项目结构
+## 架构
 
 ```
-server/                 # Python Flask后端
-├── app/
-│   ├── routes/        # API路由
-│   ├── services/      # 业务逻辑服务
-│   └── utils/         # 工具函数
-├── config/            # 配置文件
-├── scripts/           # 脚本文件
-│   ├── init_database.sql  # 数据库建表SQL
-│   └── test_data.sql      # 测试数据
-├── uploads/           # 上传文件目录
-├── chroma_data/      # Chroma向量数据库存储
-└── requirements.txt   # Python依赖
-
-client/                # Vue3前端
-├── src/
-│   ├── api/          # API调用封装
-│   ├── router/       # 路由配置
-│   ├── views/        # 页面组件
-│   └── assets/       # 静态资源
-└── .env              # 环境变量配置
+用户提问
+   │
+   ▼
+① 缓存层 ──── 命中 → 直接返回（<1s）
+   │ 未命中
+② 理解层 ──── 查询改写（指代消解 + 多变体扩展 + 领域同义规则，带缓存保证确定性）
+   │
+③ 检索层 ──── 稠密路(Embedding→Chroma) ─┐
+   │                                     ├→ RRF融合 → Cross-Encoder重排
+   │        稀疏路(jieba→BM25) ───────────┘        → 置信度兜底 → 动态TopK
+   │                                              → 父窗口扩展（子块命中、父段落作答）
+④ 生成层 ──── 提示词模板 → LLM流式生成(SSE)
+   │
+⑤ 落地层 ──── 问答历史 → 语义缓存回写 → 点赞/点踩反馈 → badcase转化金标
 ```
 
-## 技术栈
+## 核心特性
 
-### 后端
-- **Web框架**: Flask 2.3
-- **数据库**: MySQL 8.0 (db_enterprise_9a, 端口3308)
-- **向量数据库**: Chroma
-- **LLM模型**: oMLX Qwen3.5-9B-MLX-4bit
-- **嵌入模型**: Qllama Qwen3-Embedding-8B-4bit-DWQ
-- **认证**: JWT + MD5密码
+- **混合检索**：BM25（词法精确）+ 向量（语义泛化）双路召回，RRF 倒数排名融合，Cross-Encoder 精排——单路故障时另一路自动兜底
+- **父子索引**：小子块精准匹配、父窗口完整作答，兼顾检索精度与上下文完整性
+- **多租户 + 密级 + ACL**：部门隔离、密级门槛、显式授权三级可见性控制，权限元数据双库同步
+- **模型热插拔**：LLM/嵌入模型经注册表运行时切换（OpenAI 兼容协议），切换自动清理语义缓存
+- **评测驱动**：57 题双粒度金标集（文档级 Recall + 章节级关键词命中）+ LLM-as-Judge A/B 盲评框架（位置随机化防偏）
+- **质量闭环**：点赞/点踩 → badcase 自动转化金标候选 → 同义规则引擎修复检索缺口
 
-### 前端
-- **框架**: Vue 3
-- **UI库**: Element Plus
-- **图表**: ECharts
-- **构建**: Vite
+## 评测结果
 
-## 功能特性
-
-1. **用户管理**: 登录/注册/个人中心，支持管理员和普通用户角色
-2. **知识库管理**: 文档上传/下载/删除，支持分类管理
-3. **智能问答**: 基于RAG技术的智能问答，支持文档检索
-4. **管理员后台**: 数据统计图表、用户管理、文档管理、登录日志
+| 指标 | 数值 | 说明 |
+|---|---|---|
+| Recall@5 | **1.000** | 57 题四领域金标集 |
+| MRR@5 | **1.000** | |
+| 章节关键词命中率 | **0.944+** | 单文档 1323 块场景下的章节级区分指标 |
+| LLM A/B 盲评 | 9B 本地 vs 27B 量化：99.3 vs 95.3（200分制） | 陷阱题（无答案识别）为决定性维度 |
 
 ## 快速开始
 
-### 1. 初始化数据库
-
 ```bash
-# 登录MySQL并执行建表SQL
-mysql -h localhost -P 3308 -u root -p123456 < server/scripts/init_database.sql
-mysql -h localhost -P 3308 -u root -p123456 < server/scripts/test_data.sql
-```
+# 1. 依赖（Python 3.12 venv）
+pip install -r server/requirements.txt
 
-### 2. 安装后端依赖
+# 2. 配置：复制 server/.env.example → server/.env 填入本地模型端点
+# 3. 初始化数据库
+mysql -u root -p db_enterprise_9a < server/scripts/init_database.sql
 
-```bash
+# 4. 灌入演示语料并启动
 cd server
-pip install -r requirements.txt
-```
-
-### 3. 安装前端依赖
-
-```bash
-cd client
-npm install
-```
-
-### 4. 启动服务
-
-```bash
-# 启动后端 (端口5000)
-cd server
+python scripts/seed_sample_docs.py
 python app.py
 
-# 启动前端 (端口3000)
-cd client
-npm run dev
+# 5. 前端
+cd client && npm install && npm run dev
 ```
 
-## 默认账号
+## 工程实践
 
-| 用户名 | 密码 | 角色 |
-|--------|------|------|
-| admin | 123456 | 管理员 |
-| user01 | 123456 | 普通用户 |
+- **评测驱动重构**：1416 行核心服务拆分为 8 个单一职责模块，以 57 题评测作为安全网实现零行为变更迁移
+- **33 项单元测试**：覆盖 RRF 融合、分块页码贯通、密码双算法迁移、查询改写缓存确定性、OCR 断行修复
+- **OCR 断行修复**：CJK 空白规范化解决扫描件换行导致的"检索/评测/验证同时失明"问题
+- **22+ 规范 commit**（feat/fix/refactor/test 分明），历史经 git-filter-repo 密钥清洗
 
-## API接口
+## 免责
 
-### 认证相关
-- `POST /api/auth/login` - 用户登录
-- `POST /api/auth/register` - 用户注册
-- `POST /api/auth/logout` - 用户登出
-- `GET /api/auth/verify` - 验证Token
-- `POST /api/auth/change_password` - 修改密码
-
-### 用户相关
-- `GET /api/user/profile` - 获取用户信息
-- `PUT /api/user/profile` - 更新用户信息
-- `GET /api/user/list` - 获取用户列表(管理员)
-
-### 文档相关
-- `POST /api/document/upload` - 上传文档
-- `GET /api/document/list` - 获取文档列表
-- `GET /api/document/:id` - 获取文档详情
-- `DELETE /api/document/:id` - 删除文档
-
-### 问答相关
-- `POST /api/qa/ask` - 提问
-- `GET /api/qa/history` - 获取问答历史
-
-### 管理后台
-- `GET /api/admin/dashboard` - 仪表盘统计
-- `GET /api/admin/statistics/daily` - 每日统计
-- `GET /api/admin/login_logs` - 登录日志
-
-## 数据库表结构
-
-- `tb_user` - 用户表
-- `tb_category` - 知识库分类表
-- `tb_document` - 文档表
-- `tb_qa_history` - 问答历史记录表
-- `tb_config` - 系统配置表
-- `tb_login_log` - 登录日志表
-
-## 开发说明
-
-1. 代码包含完整中文注释
-2. 密码使用MD5加密存储
-3. 使用JWT进行身份认证
-4. 支持CORS跨域请求
+本项目为个人学习/演示用途。演示语料（公安执法考试资料等）仅用于技术验证，不代表任何官方立场。
