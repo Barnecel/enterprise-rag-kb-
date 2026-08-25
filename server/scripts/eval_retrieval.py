@@ -53,7 +53,21 @@ def load_golden(path: str):
 
 def retrieve_once(svc, question, args):
     """单问题检索：双路召回 + RRF + 可选重排（复用线上管线，不走查询改写）
+    --use-rewrite 时走生产完整路径（含查询改写+同义规则，改写缓存保证确定性）
     Returns: (ranked_doc_ids, chunk_texts)"""
+    if getattr(args, 'use_rewrite', False):
+        docs = svc.retrieve_documents(question, top_k=max(args.topk, 8),
+                                      tenant_id=args.tenant, user_id=args.user,
+                                      clearance_level=args.clearance)
+        ranked_ids, texts = [], []
+        for d in docs:
+            did = d.get('doc_id') or d.get('id')
+            if did is not None and did not in ranked_ids:
+                ranked_ids.append(did)
+            txt = d.get('content') or d.get('child_content') or ''
+            if txt:
+                texts.append(txt)
+        return ranked_ids, texts
     hybrid = config.get_section('rag').get('hybrid', {})
     rerank_cfg = config.get_section('rag').get('rerank', {})
 
@@ -124,6 +138,7 @@ def main():
     parser.add_argument('--golden', default=os.path.join(SERVER_DIR, 'scripts', 'golden_set.jsonl'))
     parser.add_argument('--topk', type=int, default=5)
     parser.add_argument('--no-rerank', action='store_true')
+    parser.add_argument('--use-rewrite', action='store_true', help='走生产完整路径(含查询改写+同义规则)')
     parser.add_argument('--tenant', type=int, default=None)
     parser.add_argument('--user', type=int, default=None)
     parser.add_argument('--clearance', type=int, default=None)

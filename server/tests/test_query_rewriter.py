@@ -48,3 +48,15 @@ def test_同义规则_几名民警扩展人民警察人数(rw):
 def test_同义规则_不相关问题不注入(rw):
     out = rw.rewrite('年假有几天')
     assert not any('一名以上人民警察' in q for q in out)
+
+
+def test_同义规则_当场处罚条件补双侧词项(rw):
+    """Q10回归：条件类问题变体需同时含'当场处罚侧'与'违法事实确凿侧'词项"""
+    out = rw.rewrite('适用当场处罚（简易程序）需要满足什么条件？')
+    assert any('违法事实确凿' in q and '当场处罚' in q for q in out), f'双侧词项变体缺失: {out}'
+
+
+def test_同义规则_时限词直填变体(rw):
+    """Q7回归：传唤/盘问时限类问题补充时限词强匹配变体"""
+    out = rw.rewrite('传唤和继续盘问有什么区别？各自的时限是多久？')
+    assert any('48小时' in q and '12小时' in q for q in out), f'时限变体缺失: {out}'
