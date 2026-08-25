@@ -1104,12 +1104,38 @@ def update_document(current_user, doc_id):
         ml = _parse_min_level(data.get('min_level'))
         sets.append("min_level = %s")
         params.append(ml)
+    if 'tenant_id' in data:
+        if current_user.get('role') != 'admin':
+            return jsonify({'code': 403, 'message': '仅管理员可调整文档所属部门'}), 403
+        sets.append("tenant_id = %s")
+        params.append(int(data['tenant_id']))
+    if 'doc_level' in data:
+        dl = str(data['doc_level']).lower()
+        if dl not in ('public', 'private'):
+            return jsonify({'code': 400, 'message': 'doc_level 仅支持 public/private'}), 400
+        sets.append("doc_level = %s")
+        params.append(dl)
 
     if not sets:
         return jsonify({'code': 400, 'message': '没有可更新的字段'}), 400
 
     params.append(doc_id)
     execute_update(f"UPDATE tb_document SET {', '.join(sets)} WHERE id = %s", tuple(params))
+
+    # 权限字段变更时同步两套索引的元数据（否则已入库向量的可见性不生效）
+    vis_changes = {}
+    if 'tenant_id' in data:
+        vis_changes['tenant_id'] = data['tenant_id']
+    if 'doc_level' in data:
+        vis_changes['doc_level'] = data['doc_level']
+    if 'min_level' in data:
+        vis_changes['min_level'] = _parse_min_level(data.get('min_level'))
+    if vis_changes:
+        try:
+            get_rag_service().update_doc_visibility(doc_id, **vis_changes)
+        except Exception as e:
+            print(f"权限元数据同步失败 doc {doc_id}: {e}")
+
     return jsonify({'code': 200, 'message': '更新成功'})
 
 

@@ -29,13 +29,21 @@ def main():
         print(f"doc#{doc_id} 无向量数据")
         return
 
-    seen, dup_ids = set(), []
-    for cid, text in zip(ids, texts):
+    seen = {}   # hash -> (id, has_page)  保留组
+    dup_ids = []
+    for cid, text, meta in zip(ids, texts, metas):
         key = hashlib.md5((text or '').strip().encode('utf-8')).hexdigest()
-        if key in seen:
-            dup_ids.append(cid)
+        has_page = bool(meta and meta.get('page'))
+        if key not in seen:
+            seen[key] = (cid, has_page)
         else:
-            seen.add(key)
+            kept_id, kept_page = seen[key]
+            if has_page and not kept_page:
+                # 新块带页码而保留块没有 → 换保：删旧留新
+                dup_ids.append(kept_id)
+                seen[key] = (cid, True)
+            else:
+                dup_ids.append(cid)
 
     print(f"doc#{doc_id}: 总块 {len(ids)} | 唯一 {len(seen)} | 重复待删 {len(dup_ids)}")
     if not dup_ids:
