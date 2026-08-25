@@ -9,6 +9,7 @@ from functools import wraps
 from datetime import datetime, timedelta
 from application.routes.auth import verify_token
 from application.utils.db_utils import execute_query
+from application.services.rag_service import get_rag_service
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -293,3 +294,47 @@ def get_login_logs(current_user):
             'limit': limit
         }
     })
+
+# ==================== 运行指标（最小可观测性） ====================
+import time as _time
+_PS_START = _time.time()
+
+
+@admin_bp.route('/metrics', methods=['GET'])
+@token_required
+def system_metrics(current_user):
+    """
+    系统运行指标快照（管理员）
+    - 资源：文档/用户/向量块/BM25块
+    - 使用：问答总数/会话数/反馈满意度
+    - 进程：运行时长
+    """
+    svc = get_rag_service()
+    docs_by_status = execute_query(
+        "SELECT status, COUNT(*) AS n FROM tb_document GROUP BY status")
+    qa_total = execute_query("SELECT COUNT(*) AS n FROM tb_qa_history")[0]['n']
+    conv_total = execute_query("SELECT COUNT(*) AS n FROM tb_qa_conversation")[0]['n']
+    user_total = execute_query("SELECT COUNT(*) AS n FROM tb_user")[0]['n']
+    fb = execute_query(
+        "SELECT COALESCE(SUM(rating=1),0) AS likes, COALESCE(SUM(rating=-1),0) AS dislikes, "
+        "COUNT(*) AS total FROM tb_qa_feedback")[0]
+
+    try:
+        chunks = svc.vectorstore._collection.count() if svc.vectorstore else 0
+    except Exception:
+        chunks = 0
+    bm25_chunks = len(svc.bm25._chunks)
+
+    total_fb = int(fb['total'] or 0)
+    likes = int(fb['likes'] or 0)
+    return jsonify({'code': 200, 'data': {
+        'uptime_seconds': round(_time.time() - _PS_START),
+        'documents': {'by_status': {r['status']: r['n'] for r in docs_by_status}},
+        'users': user_total,
+        'qa': {'total': qa_total, 'conversations': conv_total},
+        'feedback': {'likes': likes, 'dislikes': int(fb['dislikes'] or 0),
+                     'total': total_fb,
+                     'satisfaction': round(likes / total_fb, 4) if total_fb else None},
+        'index': {'chroma_chunks': chunks, 'bm25_chunks': bm25_chunks,
+                  'consistent': chunks == bm25_chunks},
+    }})
