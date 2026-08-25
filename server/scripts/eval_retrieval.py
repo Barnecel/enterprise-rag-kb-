@@ -45,12 +45,15 @@ def load_golden(path: str):
                 print(f"[跳过] 第{line_no}行缺少 question 或相关文档ID")
                 continue
             note = row.get('note') or '/'.join(row.get('tags') or [])
-            items.append({'question': q, 'relevant': set(rel), 'note': note})
+            must = [str(k) for k in (row.get('must_contain') or [])]
+            items.append({'question': q, 'relevant': set(rel), 'note': note,
+                          'must_contain': must})
     return items
 
 
 def retrieve_once(svc, question, args):
-    """单问题检索：双路召回 + RRF + 可选重排（复用线上管线，不走查询改写）"""
+    """单问题检索：双路召回 + RRF + 可选重排（复用线上管线，不走查询改写）
+    Returns: (ranked_doc_ids, chunk_texts)"""
     hybrid = config.get_section('rag').get('hybrid', {})
     rerank_cfg = config.get_section('rag').get('rerank', {})
 
@@ -70,18 +73,23 @@ def retrieve_once(svc, question, args):
     else:
         merged = merged[:top_n]
 
-    ranked_ids = []
+    ranked_ids, texts = [], []
     for c in merged:
         did = c.get('doc_id')
         if did is not None and did not in ranked_ids:
             ranked_ids.append(did)
-    return ranked_ids
+        txt = c.get('text') or c.get('content') or ''
+        if txt:
+            texts.append(txt)
+    return ranked_ids, texts
 
 
 def evaluate(items, svc, args):
     results = []
     for it in items:
-        ranked = retrieve_once(svc, it['question'], args)[:args.topk]
+        ranked, texts = retrieve_once(svc, it['question'], args)
+        ranked = ranked[:args.topk]
+        blob = '\n'.join(texts)
         hit_set = set(ranked) & it['relevant']
         recall = len(hit_set) / len(it['relevant'])
         mrr = 0.0
@@ -89,6 +97,12 @@ def evaluate(items, svc, args):
             if did in it['relevant']:
                 mrr = 1.0 / rank
                 break
+        # 章节级关键词命中（must_contain 非空时计算）
+        kw_found, kw_total = 0, len(it['must_contain'])
+        for kw in it['must_contain']:
+            if kw in blob:
+                kw_found += 1
+        kw_hit = (kw_found / kw_total) if kw_total else None
         results.append({
             'question': it['question'],
             'note': it['note'],
@@ -97,6 +111,10 @@ def evaluate(items, svc, args):
             'recall': recall,
             'mrr': mrr,
             'hit': int(bool(hit_set)),
+            'must_contain': it['must_contain'],
+            'kw_found': kw_found,
+            'kw_total': kw_total,
+            'kw_hit': kw_hit,
         })
     return results
 
@@ -128,20 +146,27 @@ def main():
     avg_recall = sum(r['recall'] for r in results) / n
     avg_mrr = sum(r['mrr'] for r in results) / n
     hit_rate = sum(r['hit'] for r in results) / n
+    kw_rows = [r for r in results if r['kw_total']]
+    avg_kw = (sum(r['kw_hit'] for r in kw_rows) / len(kw_rows)) if kw_rows else None
 
     print("\n========== 检索评测报告 ==========")
     print(f"样本数: {n} | topk: {args.topk} | rerank: {'off' if args.no_rerank else 'on'}")
     print(f"Recall@{args.topk}: {avg_recall:.3f}")
     print(f"MRR@{args.topk}:    {avg_mrr:.3f}")
     print(f"HitRate@{args.topk}: {hit_rate:.3f}")
+    if avg_kw is not None:
+        print(f"章节关键词命中率: {avg_kw:.3f} ({len(kw_rows)}条带must_contain)")
 
-    worst = sorted(results, key=lambda r: (r['recall'], r['mrr']))[:5]
+    # 最差用例：优先关键词低命中，其次低MRR
+    worst = sorted(results, key=lambda r: (r['kw_hit'] if r['kw_hit'] is not None else 1,
+                                           r['mrr']))[:8]
     print("\n---- 最差用例（优先复盘） ----")
     for w in worst:
-        if w['recall'] == 1.0:
-            break
-        print(f"Q: {w['question']}")
-        print(f"   期望文档: {w['relevant']} | 实际返回: {w['retrieved']} | note: {w['note']}")
+        if (w['kw_hit'] in (None, 1.0)) and w['mrr'] == 1.0:
+            continue
+        kwinfo = f"关键词{w['kw_found']}/{w['kw_total']}" if w['kw_total'] else "-"
+        print(f"Q: {w['question'][:40]} [{kwinfo}]")
+        print(f"   期望文档: {w['relevant']} | 实际返回: {w['retrieved']}")
 
     report_dir = os.path.join(SERVER_DIR, 'data')
     os.makedirs(report_dir, exist_ok=True)

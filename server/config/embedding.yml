@@ -3,3 +3,4 @@ model_name: Qwen3-Embedding-8B-4bit-DWQ
 api_base: ${EMBEDDING_API_BASE:http://127.0.0.1:8000/v1}
 dimension: 768
 batch_size: 32
+query_instruction: "Given a legal case-handling question, retrieve relevant passages from public security enforcement documents that answer the query"

@@ -123,10 +123,12 @@ class OMLXEmbeddings:
     自定义嵌入类 - 通过oMLX API调用Qwen3-Embedding-8B-4bit-DWQ模型
     """
 
-    def __init__(self, api_base: str, api_key: str, model_name: str):
+    def __init__(self, api_base: str, api_key: str, model_name: str, query_instruction: str = ""):
         self.api_base = api_base
         self.api_key = api_key
         self.model_name = model_name
+        # Qwen3-Embedding 官方机制：查询侧加任务指令可显著提升检索质量（文档侧不加）
+        self.query_instruction = query_instruction or ""
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
@@ -161,7 +163,7 @@ class OMLXEmbeddings:
 
     def embed_query(self, text: str) -> List[float]:
         """
-        嵌入单个查询
+        嵌入单个查询（按Qwen3-Embedding官方建议，查询侧拼接任务指令）
 
         Args:
             text: 查询文本
@@ -169,7 +171,8 @@ class OMLXEmbeddings:
         Returns:
             List[float]: 嵌入向量
         """
-        results = self.embed_documents([text])
+        q = f"Instruct: {self.query_instruction}\nQuery: {text}" if self.query_instruction else text
+        results = self.embed_documents([q])
         return results[0]
 
     def __call__(self, texts: List[str]) -> List[List[float]]:
@@ -207,7 +210,8 @@ class RAGService:
             self.embeddings = OMLXEmbeddings(
                 api_base=EMBEDDING_CONFIG['api_base'],
                 api_key=LLM_CONFIG.get('api_key', 'dummy'),
-                model_name=EMBEDDING_CONFIG['model_name']
+                model_name=EMBEDDING_CONFIG['model_name'],
+                query_instruction=EMBEDDING_CONFIG.get('query_instruction', '')
             )
             logger.info(f"Embedding model initialized: {EMBEDDING_CONFIG['model_name']} at {EMBEDDING_CONFIG['api_base']}")
         except Exception as e:
