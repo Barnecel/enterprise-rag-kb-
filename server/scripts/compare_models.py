@@ -40,9 +40,6 @@ MODEL_B = {
 }
 # ================== 裁判模型（可选，留空则不自动打分） ==================
 JUDGE = {
-    "api_base": "http://127.0.0.1:8000/v1",
-    "api_key": "omlx-***REMOVED***",
-    "model_name": "Qwen3.5-9B-MLX-4bit",
     # "api_base": "https://api.deepseek.com/v1",
     # "api_key": "sk-xxx",
     # "model_name": "deepseek-chat",
