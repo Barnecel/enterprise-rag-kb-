@@ -34,7 +34,7 @@ DROP TABLE IF EXISTS tb_user;
 CREATE TABLE tb_user (
     id INT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
     username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
-    password VARCHAR(32) NOT NULL COMMENT '密码(MD5加密)',
+    password VARCHAR(255) NOT NULL COMMENT '密码(bcrypt加密)',
     real_name VARCHAR(50) COMMENT '真实姓名',
     email VARCHAR(100) COMMENT '邮箱',
     phone VARCHAR(20) COMMENT '手机号',

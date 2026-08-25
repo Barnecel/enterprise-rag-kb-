@@ -119,7 +119,7 @@
               <div v-if="msg.type === 'ai' && msg.documents && msg.documents.length > 0" class="source-docs">
                 <div class="docs-title">参考文档：</div>
                 <div class="doc-item" v-for="doc in msg.documents" :key="doc.id">
-                  <a class="doc-name" :title="'打开文档：' + (doc.title || '')" @click.prevent="openDocument(doc)">{{ doc.title || '文档' + doc.id }}</a>
+                  <a class="doc-name" :title="'打开文档：' + (doc.title || '')" @click.prevent="openDocument(doc)">{{ doc.title || '文档' + doc.id }}{{ doc.page ? ' · 第' + doc.page + '页' : '' }}</a>
                   <span v-if="doc.rerank_norm != null || doc.score != null" class="doc-score">相似度: {{ ((doc.rerank_norm || doc.score || 0) * 100).toFixed(1) }}%</span>
                 </div>
               </div>

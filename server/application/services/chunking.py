@@ -155,28 +155,32 @@ def _to_atomic_units(elements: List[Any], child_size: int) -> List[Dict[str, str
     - table 整体一个单元；超过 max_chars 按行拆分为多段（每段重复表头）
     - 无文本的 image 跳过
     """
-    units: List[Dict[str, str]] = []
+    units: List[Dict[str, Any]] = []
     buf: List[str] = []
     buf_len = 0
+    buf_page = None
 
     def flush():
-        nonlocal buf, buf_len
+        nonlocal buf, buf_len, buf_page
         if buf:
-            units.append({'kind': 'text', 'text': '\n\n'.join(buf)})
-            buf, buf_len = [], 0
+            units.append({'kind': 'text', 'text': '\n\n'.join(buf), 'page': buf_page})
+            buf, buf_len, buf_page = [], 0, None
 
     for el in elements:
         kind = getattr(el, 'kind', 'text')
         text = getattr(el, 'text', '') or ''
+        page = getattr(el, 'page', None)
         if kind == 'table':
             flush()
             for piece in _split_table_pieces(text.strip()):
                 if piece.strip():
-                    units.append({'kind': 'table', 'text': piece})
+                    units.append({'kind': 'table', 'text': piece, 'page': page})
         elif kind == 'image':
             if text.strip():
                 if buf and buf_len + len(text) > child_size:
                     flush()
+                if buf_page is None:
+                    buf_page = page
                 buf.append(text)
                 buf_len += len(text)
         else:  # text
@@ -185,10 +189,12 @@ def _to_atomic_units(elements: List[Any], child_size: int) -> List[Dict[str, str
             if len(text) >= child_size:
                 flush()
                 for i in range(0, len(text), child_size):
-                    units.append({'kind': 'text', 'text': text[i:i + child_size]})
+                    units.append({'kind': 'text', 'text': text[i:i + child_size], 'page': page})
             else:
                 if buf and buf_len + len(text) > child_size:
                     flush()
+                if buf_page is None:
+                    buf_page = page
                 buf.append(text)
                 buf_len += len(text)
     flush()
@@ -264,7 +270,8 @@ def build_parent_child_chunks_from_elements(
                         'chunk_index': chunk_index,
                         'doc_level': doc_level,
                         'min_level': min_level,
-                        'owner_id': owner_id
+                        'owner_id': owner_id,
+                        'page': u.get('page')
                     }
                 ))
                 chunk_index += 1

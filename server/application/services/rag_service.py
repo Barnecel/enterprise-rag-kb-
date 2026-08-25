@@ -529,6 +529,7 @@ class RAGService:
                     'source': meta.get('source', ''),
                     'tenant_id': meta.get('tenant_id', 1),
                     'chunk_index': meta.get('chunk_index', 0),
+                    'page': meta.get('page'),
                     'text': doc.page_content,
                     'score': float(score),        # L2距离(越小越相关)
                     'dense_score': float(score),
@@ -810,6 +811,7 @@ class RAGService:
             'parent_id': candidate.get('parent_id'),
             'source': candidate.get('source'),
             'tenant_id': candidate.get('tenant_id'),
+            'page': candidate.get('page'),
             'content': parent_text,            # 父窗口(作答上下文)
             'child_content': child_text,       # 子块(检索原文)
             'score': candidate.get('score'),   # RRF融合分

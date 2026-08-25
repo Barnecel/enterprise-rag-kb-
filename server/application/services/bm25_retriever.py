@@ -83,6 +83,7 @@ class BM25Retriever:
                     'doc_level': meta.get('doc_level', 'public'),
                     'min_level': meta.get('min_level', 1),
                     'owner_id': meta.get('owner_id'),
+                    'page': meta.get('page'),
                     'text': chunk.page_content
                 })
                 self._corpus.append(tokenize(chunk.page_content))

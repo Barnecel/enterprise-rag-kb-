@@ -36,6 +36,17 @@ class QueryRewriter:
         if not QW_CONFIG.get('enabled', True):
             return [question]
 
+        # 改写结果缓存：同一问题(+历史)返回确定性变体，消除LLM随机性导致的检索漂移
+        import hashlib
+        cache_key = hashlib.md5(
+            (question + '|' + build_dialogue_text(history)).encode('utf-8')
+        ).hexdigest()
+        if not hasattr(self, '_rewrite_cache'):
+            self._rewrite_cache = {}
+        cached = self._rewrite_cache.get(cache_key)
+        if cached is not None:
+            return list(cached)
+
         num = int(QW_CONFIG.get('num_expansions', 2))
         try:
             prompt = load_query_rewrite_prompt().format(
@@ -48,6 +59,9 @@ class QueryRewriter:
             # 去重并确保原问题在首位
             queries = [question] + [q for q in queries if q != question]
             queries = queries[:num + 1]
+            self._rewrite_cache[cache_key] = list(queries)
+            if len(self._rewrite_cache) > 200:   # 防无限膨胀
+                self._rewrite_cache.pop(next(iter(self._rewrite_cache)))
             logger.info(f"Query rewrite: '{question}' -> {queries}")
             return queries
         except Exception as e:

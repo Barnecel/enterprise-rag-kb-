@@ -16,7 +16,7 @@ auth_bp = Blueprint('auth', __name__)
 
 def md5_encrypt(password):
     """
-    MD5密码加密函数
+    MD5密码加密函数（仅用于存量旧数据兼容校验，新密码一律使用bcrypt）
 
     Args:
         password: 明文密码
@@ -25,6 +25,29 @@ def md5_encrypt(password):
         str: MD5加密后的32位十六进制字符串
     """
     return hashlib.md5(password.encode()).hexdigest()
+
+
+def hash_password(password):
+    """bcrypt哈希（新密码标准，自带盐值）"""
+    import bcrypt
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def verify_password(password, stored):
+    """
+    双算法校验：$2开头走bcrypt；否则回退MD5（存量用户兼容）。
+    Returns:
+        (是否匹配, 是否为需升级的旧MD5哈希)
+    """
+    if not stored:
+        return False, False
+    if stored.startswith('$2'):
+        try:
+            import bcrypt
+            return bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8')), False
+        except Exception:
+            return False, False
+    return stored == md5_encrypt(password), True
 
 
 def generate_token(user_info):
@@ -81,20 +104,27 @@ def login():
     if not username or not password:
         return jsonify({'code': 400, 'message': '用户名和密码不能为空'}), 400
 
-    # 密码MD5加密
-    encrypted_password = md5_encrypt(password)
+    # 查询用户（按用户名，密码用双算法校验）
+    sql = "SELECT id, username, password, real_name, email, phone, role, clearance_level, tenant_id, status FROM tb_user WHERE username = %s"
+    users = execute_query(sql, (username,))
 
-    # 查询用户
-    sql = "SELECT id, username, password, real_name, email, phone, role, clearance_level, tenant_id, status FROM tb_user WHERE username = %s AND password = %s"
-    users = execute_query(sql, (username, encrypted_password))
-
-    if not users:
+    if not users or not verify_password(password, users[0]['password'])[0]:
         # 记录登录失败日志
         log_sql = "INSERT INTO tb_login_log (username, ip_address, login_status, login_message) VALUES (%s, %s, %s, '密码错误或用户不存在')"
         execute_insert(log_sql, (username, request.remote_addr, 0))
         return jsonify({'code': 401, 'message': '用户名或密码错误'}), 401
 
     user = users[0]
+
+    # 旧MD5哈希透明升级为bcrypt
+    _, need_upgrade = verify_password(password, user['password'])
+    if need_upgrade:
+        try:
+            execute_update("UPDATE tb_user SET password = %s WHERE id = %s",
+                           (hash_password(password), user['id']))
+            print(f"[auth] 用户 {username} 密码哈希已升级为bcrypt")
+        except Exception as e:
+            print(f"密码哈希升级失败: {e}")
 
     # 检查用户状态
     if user['status'] != 1:
@@ -164,8 +194,8 @@ def register():
     if execute_query(check_sql, (username,)):
         return jsonify({'code': 409, 'message': '用户名已存在'}), 409
 
-    # 密码MD5加密
-    encrypted_password = md5_encrypt(password)
+    # 密码bcrypt哈希
+    encrypted_password = hash_password(password)
 
     # 插入新用户
     insert_sql = """
@@ -264,14 +294,13 @@ def change_password():
     if len(new_password) < 6:
         return jsonify({'code': 400, 'message': '新密码长度至少6位'}), 400
 
-    # 验证旧密码
-    old_encrypted = md5_encrypt(old_password)
-    sql = "SELECT id FROM tb_user WHERE id = %s AND password = %s"
-    if not execute_query(sql, (payload['user_id'], old_encrypted)):
+    # 验证旧密码（双算法兼容）
+    row = execute_query("SELECT password FROM tb_user WHERE id = %s", (payload['user_id'],))
+    if not row or not verify_password(old_password, row[0]['password'])[0]:
         return jsonify({'code': 400, 'message': '旧密码错误'}), 400
 
-    # 更新新密码
-    new_encrypted = md5_encrypt(new_password)
+    # 更新新密码（bcrypt）
+    new_encrypted = hash_password(new_password)
     update_sql = "UPDATE tb_user SET password = %s WHERE id = %s"
     execute_update(update_sql, (new_encrypted, payload['user_id']))
 

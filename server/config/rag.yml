@@ -35,7 +35,7 @@ dynamic_topk:
 query_rewrite:
   enabled: true
   num_expansions: 2      # 改写生成2个变体(最多3个查询)
-  temperature: 0.3
+  temperature: 0.2
 
 # 租户隔离 (特性5: 部门级数据安全)
 tenant:
