@@ -39,6 +39,12 @@ class RAGService(RetrievalMixin, IngestionMixin, GenerationMixin, RegistryMixin,
         self.cache_manager = CacheManager()
         self._initialize_embeddings()
         self._initialize_vectorstore()
+        # 启动时应用DB中启用的模型配置（覆盖YAML默认），保证模型切换在重启后依旧生效
+        try:
+            applied = self.apply_active_models()
+            logger.info(f"启动应用DB模型配置: {applied}")
+        except Exception as e:
+            logger.warning(f"启动应用DB模型配置失败(回退YAML): {e}")
 
     def _initialize_embeddings(self):
         """
@@ -53,7 +59,7 @@ class RAGService(RetrievalMixin, IngestionMixin, GenerationMixin, RegistryMixin,
         try:
             self.embeddings = OMLXEmbeddings(
                 api_base=EMBEDDING_CONFIG['api_base'],
-                api_key=LLM_CONFIG.get('api_key', 'dummy'),
+                api_key=EMBEDDING_CONFIG.get('api_key', 'dummy'),
                 model_name=EMBEDDING_CONFIG['model_name'],
                 query_instruction=EMBEDDING_CONFIG.get('query_instruction', '')
             )
