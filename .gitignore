@@ -24,3 +24,8 @@ server/.env
 .vscode/
 .claude/
 .opencode/
+
+# 压测结果 & 日志
+loadtest/results_*.csv
+server.log
+server/server.log
