@@ -16,8 +16,6 @@ from application.utils.db_utils import execute_query, execute_update, execute_in
 from application.rag import state
 from application.rag.state import _parent_map, _parent_lock, _save_parent_map, DATA_DIR
 
-from monitoring.retrieval_monitor import timed_generate
-
 RAG_CONFIG = config.get_section('rag')
 HYBRID_CONFIG = RAG_CONFIG.get('hybrid', {})
 RERANK_CONFIG = RAG_CONFIG.get('rerank', {})
@@ -32,24 +30,43 @@ LLM_CONFIG = config.get_section('llm')
 
 class GenerationMixin:
     """答案生成：提示词构建 + LLM流式/非流式调用"""
-
     def generate_answer(self, question: str, context_documents: List[Dict], history: Optional[List[Dict]] = None) -> str:
+        """
+        使用LLM生成回答（上下文为父窗口文本）
+
+        Args:
+            question: 用户问题
+            context_documents: 上下文文档列表
+            history: 会话历史(供LLM理解指代与语境)
+
+        Returns:
+            str: 生成的回答
+        """
         try:
             context = "\n\n".join([
                 f"文档{i+1}:\n{doc.get('content', '')}"
                 for i, doc in enumerate(context_documents)
             ])
+
             prompt = load_rag_prompt().format(
                 context=context, question=question,
                 history=build_dialogue_text(history)
             )
-            with timed_generate(LLM_CONFIG['model_name']):
-                return self._call_llm(prompt)
+            return self._call_llm(prompt)
         except Exception as e:
             logger.error(f"Failed to generate answer: {e}")
             return self._mock_generate_answer(question, context_documents)
 
     def _call_llm(self, prompt: str) -> str:
+        """
+        调用LLM大模型 (oMLX Qwen3.5-9B)
+
+        Args:
+            prompt: 提示词
+
+        Returns:
+            str: 模型生成的回复
+        """
         try:
             response = requests.post(
                 f"{LLM_CONFIG['api_base']}/chat/completions",
@@ -74,6 +91,15 @@ class GenerationMixin:
             return f"LLM调用失败: {str(e)}"
 
     def _call_llm_stream(self, prompt: str) -> Iterator[str]:
+        """
+        流式调用LLM(oMLX)，逐token产出文本
+
+        Args:
+            prompt: 完整提示词
+
+        Yields:
+            文本增量(token)
+        """
         try:
             response = requests.post(
                 f"{LLM_CONFIG['api_base']}/chat/completions",
@@ -125,6 +151,19 @@ class GenerationMixin:
         acl_doc_ids: Optional[List[int]] = None,
         history: Optional[List[Dict]] = None
     ) -> Iterator[Dict[str, Any]]:
+        """
+        流式RAG问答入口
+        事件序列: retrieving(检索中) -> thinking(检索完成,LLM生成中) -> token*(增量) -> done(结束)
+        命中L1/L2全量缓存时直接输出缓存答案；命中L3时跳过检索仅重新生成。
+
+        Args:
+            question: 用户问题
+            user_id: 用户ID
+            tenant_id: 租户ID(admin传None)
+            clearance_level: 用户密级
+            acl_doc_ids: ACL授权文档ID列表
+            history: 会话历史(指代消解与语境理解)
+        """
         top_k = int(RAG_CONFIG['top_k'])
 
         # 0. 全量答案缓存(L1精确/L2语义)
@@ -142,7 +181,7 @@ class GenerationMixin:
                    'model_used': cached_full.get('model_used') or LLM_CONFIG['model_name']}
             return
 
-        # 1. 检索阶段(L3上下文缓存命中则跳过)
+        # 1. 检索阶段(L3上下文缓存命中则跳过，查询改写/双路召回/重排耗时较长)
         yield {'type': 'status', 'phase': 'retrieving'}
         stats: Dict[str, Any] = {}
         l3 = self.cache_manager.get_l3_context(question, user_id, tenant_id)
@@ -166,10 +205,9 @@ class GenerationMixin:
                 context=context, question=question,
                 history=build_dialogue_text(history)
             )
-            with timed_generate(LLM_CONFIG['model_name']):
-                for delta in self._call_llm_stream(prompt):
-                    answer_parts.append(delta)
-                    yield {'type': 'token', 'delta': delta}
+            for delta in self._call_llm_stream(prompt):
+                answer_parts.append(delta)
+                yield {'type': 'token', 'delta': delta}
         except Exception as e:
             logger.error(f"Stream generate failed: {e}")
             yield {'type': 'token', 'delta': f"（生成回答失败：{e}）"}
@@ -194,9 +232,21 @@ class GenerationMixin:
             logger.warning(f"Cache hot question failed: {e}")
 
     def _mock_generate_answer(self, question: str, context_documents: List[Dict]) -> str:
+        """
+        模拟回答生成
+
+        Args:
+            question: 用户问题
+            context_documents: 上下文文档
+
+        Returns:
+            str: 模拟回答
+        """
         if not context_documents:
             return "抱歉，知识库中暂时没有找到相关信息。"
+
         context_text = "\n".join([doc.get('content', '')[:300] for doc in context_documents])
+
         return f"""根据检索到的相关文档，我为您找到以下信息：
 
 {context_text[:500]}...
@@ -212,6 +262,21 @@ class GenerationMixin:
         acl_doc_ids: Optional[List[int]] = None,
         history: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
+        """
+        RAG问答的入口方法
+        完整流程：缓存检查 -> 查询改写 -> 混合检索 -> 重排 -> 动态TopK -> 父窗口作答
+
+        Args:
+            question: 用户问题
+            user_id: 用户ID
+            tenant_id: 所属租户ID
+            clearance_level: 用户密级
+            acl_doc_ids: 用户被显式授权的文档ID列表
+            history: 会话历史(指代消解与语境理解)
+
+        Returns:
+            Dict: 包含回答、源文档、token消耗等
+        """
         top_k = int(RAG_CONFIG['top_k'])
 
         # 0. 缓存检查(L1精确/L2语义返回完整答案；L3返回检索结果仅省去检索)
@@ -246,10 +311,9 @@ class GenerationMixin:
             )
 
         # 2. 生成回答
-        with timed_generate(LLM_CONFIG['model_name']):
-            answer = self.generate_answer(question, retrieved_docs, history)
+        answer = self.generate_answer(question, retrieved_docs, history)
 
-        # 3. 提取源文档ID
+        # 3. 提取源文档ID(修复历史恒为空的问题)
         source_doc_ids = list(dict.fromkeys([doc['id'] for doc in retrieved_docs if doc.get('id')]))
 
         # 4. 热点问题写入各级缓存
@@ -267,7 +331,11 @@ class GenerationMixin:
             'source_documents': source_doc_ids,
             'retrieved_docs': retrieved_docs,
             'model_used': LLM_CONFIG['model_name'],
-            'token_count': len(question) + len(answer),
+            'token_count': len(question) + len(answer),  # 粗略估算
             'topk_used': stats.get('topk_used'),
             'retrieval_stats': stats
         }
+
+    # ============================================================
+    # 向量库重建
+    # ============================================================

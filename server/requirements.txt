@@ -43,3 +43,10 @@ Pillow==12.2.0
 rapidocr-onnxruntime==1.4.4
 onnxruntime==1.26.0
 opencv-python==5.0.0.93
+
+# 监控 / 可观测性
+prometheus-client==0.20.0
+prometheus-flask-exporter==0.23.1
+
+# 压测
+locust==2.25.1

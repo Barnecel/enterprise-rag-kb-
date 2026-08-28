@@ -13,6 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import FLASK_CONFIG
+from monitoring.metrics import monitor_middleware
 
 def create_app():
     """
@@ -30,6 +31,9 @@ def create_app():
 
     # 启用CORS跨域支持
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    # 注册监控中间件（Prometheus metrics + /metrics 暴露）
+    monitor_middleware(app)
 
     # 注册蓝图路由
     from application.routes.auth import auth_bp

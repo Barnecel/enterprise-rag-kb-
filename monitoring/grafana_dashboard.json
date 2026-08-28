@@ -1,0 +1,98 @@
+{
+  "dashboard": {
+    "title": "RAG System Overview",
+    "uid": "rag-overview",
+    "tags": ["rag", "llm", "monitoring"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "QPS",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {"expr": "rate(http_requests_total[1m])", "legendFormat": "{{method}} {{endpoint}}", "refId": "A"}
+        ],
+        "yAxes": [{"format": "reqps", "label": "Requests/sec"}, {"format": "short"}]
+      },
+      {
+        "title": "TTFT P50/P95/P99",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {"expr": "histogram_quantile(0.50, rate(http_request_latency_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A"},
+          {"expr": "histogram_quantile(0.95, rate(http_request_latency_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B"},
+          {"expr": "histogram_quantile(0.99, rate(http_request_latency_seconds_bucket[5m]))", "legendFormat": "P99", "refId": "C"}
+        ],
+        "yAxes": [{"format": "s", "label": "Seconds"}, {"format": "short"}]
+      },
+      {
+        "title": "Cache Hit Rate",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 6},
+        "targets": [
+          {"expr": "sum(rate(cache_hit_total[5m])) / (sum(rate(cache_hit_total[5m])) + sum(rate(cache_miss_total[5m])))", "legendFormat": "Hit Rate", "refId": "A"}
+        ],
+        "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.3}, {"color": "green", "value": 0.6}]}}}
+      },
+      {
+        "title": "Active Requests",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 6},
+        "targets": [{"expr": "active_requests", "legendFormat": "Active", "refId": "A"}],
+        "yAxes": [{"format": "short", "label": "Count"}, {"format": "short"}]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 6},
+        "targets": [{"expr": "rate(http_requests_total{status=~\"5..\"}[1m]) / rate(http_requests_total[1m])", "legendFormat": "5xx Rate", "refId": "A"}],
+        "yAxes": [{"format": "percentunit", "label": "Error Rate"}, {"format": "short"}]
+      },
+      {
+        "title": "Retrieve Breakdown P95",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 14, "w": 12, "h": 8},
+        "targets": [
+          {"expr": "histogram_quantile(0.95, rate(retrieve_latency_seconds_bucket{stage=\"bm25\"}[5m]))", "legendFormat": "BM25", "refId": "A"},
+          {"expr": "histogram_quantile(0.95, rate(retrieve_latency_seconds_bucket{stage=\"vector\"}[5m]))", "legendFormat": "Vector", "refId": "B"},
+          {"expr": "histogram_quantile(0.95, rate(retrieve_latency_seconds_bucket{stage=\"rrf\"}[5m]))", "legendFormat": "RRF", "refId": "C"},
+          {"expr": "histogram_quantile(0.95, rate(retrieve_latency_seconds_bucket{stage=\"rerank\"}[5m]))", "legendFormat": "Rerank", "refId": "D"},
+          {"expr": "histogram_quantile(0.95, rate(retrieve_latency_seconds_bucket{stage=\"total\"}[5m]))", "legendFormat": "Total", "refId": "E"}
+        ],
+        "yAxes": [{"format": "s", "label": "Seconds"}, {"format": "short"}]
+      },
+      {
+        "title": "Generate Latency by Model P95",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 14, "w": 12, "h": 8},
+        "targets": [
+          {"expr": "histogram_quantile(0.95, rate(generate_latency_seconds_bucket[5m]))", "legendFormat": "{{model}}", "refId": "A"}
+        ],
+        "yAxes": [{"format": "s", "label": "Seconds"}, {"format": "short"}]
+      },
+      {
+        "title": "Cache Hits/Misses by Layer",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 22, "w": 12, "h": 8},
+        "targets": [
+          {"expr": "sum by (layer) (rate(cache_hit_total[5m]))", "legendFormat": "Hit - {{layer}}", "refId": "A"},
+          {"expr": "sum by (layer) (rate(cache_miss_total[5m]))", "legendFormat": "Miss - {{layer}}", "refId": "B"}
+        ],
+        "yAxes": [{"format": "reqps", "label": "Requests/sec"}, {"format": "short"}]
+      },
+      {
+        "title": "Endpoint Latency P95 (Top 10)",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 22, "w": 12, "h": 8},
+        "targets": [
+          {"expr": "topk(10, histogram_quantile(0.95, rate(http_request_latency_seconds_bucket[5m])))", "legendFormat": "{{endpoint}}", "refId": "A", "format": "table"}
+        ]
+      }
+    ]
+  }
+}

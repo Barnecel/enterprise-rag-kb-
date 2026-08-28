@@ -28,20 +28,6 @@ from utils.logger_handler import logger
 from utils.config_handler import config as app_config
 from application.services.semantic_cache import SemanticCache
 
-# Prometheus 监控指标（延迟导入避免循环依赖）
-_monitoring = None
-def _get_monitoring():
-    global _monitoring
-    if _monitoring is None:
-        try:
-            from monitoring.retrieval_monitor import record_cache_hit, record_cache_miss
-            _monitoring = (record_cache_hit, record_cache_miss)
-        except Exception:
-            _monitoring = (lambda *a, **k: None, lambda *a, **k: None)
-    return _monitoring
-
-record_cache_hit, record_cache_miss = _get_monitoring()
-
 
 # ============================================================
 # 数据结构
@@ -218,7 +204,7 @@ class CacheManager:
                 if cache_key in self._l3:
                     self._l3_order.remove(cache_key)
                     self._l3_order.append(cache_key)
-            record_cache_hit('L3')
+            self._incr('l3_hits')
             logger.info(f"L3 context cache HIT: '{normalized[:50]}'")
             return entry.retrieved_docs, entry.retrieval_stats
         except Exception as e:
@@ -352,14 +338,12 @@ class CacheManager:
         try:
             entry = self._l1.get(cache_key)
             if entry is None:
-                record_cache_miss('L1')
                 return None
             if entry.is_expired:
                 with self._lock:
                     self._l1.pop(cache_key, None)
-                record_cache_miss('L1')
+                self._incr('l1_misses')
                 return None
-            record_cache_hit('L1')
             self._incr('l1_hits')
             # 更新LRU
             with self._lock:
@@ -375,7 +359,6 @@ class CacheManager:
             }
         except Exception as e:
             logger.warning(f"L1 cache check failed (graceful degradation): {e}")
-            record_cache_miss('L1')
             self._incr('l1_misses')
             return None
 
@@ -410,11 +393,9 @@ class CacheManager:
             result = self._l2.search(normalized)
             if result is None:
                 self._incr('l2_misses')
-                record_cache_miss('L2')
                 return None
             entry, score = result
             self._incr('l2_hits')
-            record_cache_hit('L2')
             return {
                 'answer': entry.answer,
                 'source_documents': entry.source_documents,
@@ -425,7 +406,6 @@ class CacheManager:
         except Exception as e:
             logger.warning(f"L2 cache check failed (graceful degradation): {e}")
             self._incr('l2_misses')
-            record_cache_miss('L2')
             return None
 
     # ============================================================
@@ -437,14 +417,12 @@ class CacheManager:
         try:
             entry = self._l3.get(cache_key)
             if entry is None:
-                record_cache_miss('L3')
                 self._incr('l3_misses')
                 return None
             if entry.is_expired:
                 with self._lock:
                     self._l3.pop(cache_key, None)
                 self._incr('l3_misses')
-                record_cache_miss('L3')
                 return None
             # 更新LRU
             with self._lock:
@@ -452,7 +430,6 @@ class CacheManager:
                     self._l3_order.remove(cache_key)
                     self._l3_order.append(cache_key)
             self._incr('l3_hits')
-            record_cache_hit('L3')
             logger.info(f"L3 context cache HIT: '{normalized[:50]}'")
             return {
                 'from_cache': 'L3',
@@ -462,7 +439,6 @@ class CacheManager:
         except Exception as e:
             logger.warning(f"L3 cache check failed (graceful degradation): {e}")
             self._incr('l3_misses')
-            record_cache_miss('L3')
             return None
 
     def _set_l3(self, cache_key: str, question: str,
