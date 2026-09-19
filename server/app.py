@@ -8,21 +8,24 @@ from flask import Flask
 from flask_cors import CORS
 import sys
 import os
+from typing import Optional
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import FLASK_CONFIG
 from monitoring.metrics import monitor_middleware
+from utils.exceptions import RAGException, register_error_handlers
 
-def create_app():
+
+def create_app() -> Flask:
     """
     创建并配置Flask应用实例
 
     Returns:
         Flask: 配置好的Flask应用实例
     """
-    app = Flask(__name__)
+    app: Flask = Flask(__name__)
 
     # 配置加载
     app.config['SECRET_KEY'] = FLASK_CONFIG['SECRET_KEY']
@@ -34,6 +37,9 @@ def create_app():
 
     # 注册监控中间件（Prometheus metrics + /metrics 暴露）
     monitor_middleware(app)
+
+    # 注册统一错误处理器
+    register_error_handlers(app)
 
     # 注册蓝图路由
     from application.routes.auth import auth_bp
@@ -53,12 +59,12 @@ def create_app():
     app.register_blueprint(model_bp, url_prefix='/api/model')
 
     # 创建上传目录
-    upload_folder = os.path.join(os.path.dirname(__file__), 'uploads')
+    upload_folder: str = os.path.join(os.path.dirname(__file__), 'uploads')
     os.makedirs(upload_folder, exist_ok=True)
 
     # 健康检查端点
     @app.route('/api/health')
-    def health_check():
+    def health_check() -> dict[str, str]:
         """健康检查端点"""
         return {'status': 'ok', 'message': '服务运行正常'}
 
@@ -67,7 +73,7 @@ def create_app():
 
 # 应用入口
 if __name__ == '__main__':
-    app = create_app()
+    app: Flask = create_app()
     app.run(
         host=os.environ.get('FLASK_HOST', '0.0.0.0'),
         port=int(os.environ.get('FLASK_PORT', 5003)),
