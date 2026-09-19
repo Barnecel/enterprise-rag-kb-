@@ -3,6 +3,7 @@
 自定义异常层级模块
 提供统一的错误类型和HTTP状态码映射，用于API响应中的code/message字段
 """
+from flask import jsonify
 from typing import Optional, Dict, Any
 
 
